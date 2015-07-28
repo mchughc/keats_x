@@ -1,0 +1,239 @@
+---
+title: "keats-x stuff"
+output: html_document
+---
+
+Playing around with some keats-x code. Got this code from the famSKAT function example <http://www.hsph.harvard.edu/han-chen/2014/07/31/famskat/>.
+
+```{r}
+
+source("famSKAT.R")
+install.packages("~/Documents/keats-x/kinship_1.1.0-23.tar.gz", repos = NULL, type = "source")
+library(kinship)
+wuweights <- function(maf) ifelse(maf>0, dbeta(maf,1,25), 0)
+
+set.seed(12345)
+fullped<-data.frame(famid=rep(1:250,each=4),id=10001:11000,fa=rep(0,1000),mo=rep(0,1000))
+fullped$fa[(1:250)*4-1]<-fullped$fa[(1:250)*4]<-(1:250)*4+9997
+fullped$mo[(1:250)*4-1]<-fullped$mo[(1:250)*4]<-(1:250)*4+9998
+pheno<-data.frame(id=10001:11000,y=rnorm(1000),sex=rep(1:2,500),bmi=rnorm(1000,25,2))
+geno<-data.frame(id=10001:11000,snp1=sample(0:2,1000,replace=T,prob=c(0.81,0.18,0.01)),snp2=sample(0:2,1000,replace=T,prob=c(0.81,0.18,0.01)),snp3=sample(0:2,1000,replace=T,prob=c(0.81,0.18,0.01)))
+
+fullkins=makekinship(fullped$famid, fullped$id, fullped$fa, fullped$mo)
+phenotype=pheno$y
+genotypes=as.matrix(geno[,-1])
+id=pheno$id
+covariates=as.matrix(pheno[,c("sex","bmi")])
+n<-length(phenotype)
+
+  Z<-genotypes
+	nZ<-ncol(Z)
+	MAF<-colMeans(Z, na.rm = TRUE)/2
+
+sqrtweights<- wuweights
+weights<-sqrtweights(MAF)
+
+tmpidx<-!is.na(match(dimnames(fullkins)[[1]], id))
+  tmpkins<-fullkins[tmpidx, tmpidx]
+  tmpidx<-match(id, dimnames(tmpkins)[[1]])
+	if(any(is.na(tmpidx))) stop("Some id not exist in fullkins. Check your full pedigree data...")
+	kins<-as.matrix(tmpkins)[tmpidx, tmpidx]
+
+
+  G<-t(t(Z)*weights)
+
+  X<-cbind(rep(1,n),as.matrix(covariates))
+			tmpdata<-data.frame(phenotype,id,covariates)
+			nc<-ncol(covariates)
+				exprs<-paste("phenotype ~", paste(names(tmpdata)[-c(1,2)],collapse=" + "))
+			nullmod<-lmekin(as.formula(exprs),tmpdata,random=~1|id,varlist=list(as.matrix(fullkins)))
+
+```
+
+Check that output from famSKAT var components are same as matt's estVarComp() function.
+
+```{r}
+library(GWASTools)
+source("../mlm_on_X/estVarComp.R")
+
+sex=pheno$sex
+sex[sex==1] <- "M"
+sex[sex==2] <- "F"
+  scan1 <- data.frame(scanID=pheno$id,sex=sex,pheno=pheno$y,bmi=pheno$bmi)
+  scan1 <- ScanAnnotationDataFrame(scan1)
+
+  genoMt <- MatrixGenotypeReader(genotype=t(genotypes),snpID=as.integer(1:ncol(genotypes)),
+                                 chromosome=as.integer(rep(23,ncol(genotypes))),
+                                 position=as.integer(1:ncol(genotypes)), scanID=scan1$scanID)
+
+  genoData <- GenotypeData(genoMt,scanAnnot=scan1)
+
+  snpStart <- 1
+  snpEnd <- 1:ncol(genotypes)
+
+kinAuto <- as.matrix(fullkins)
+  colnames(kinAuto) <- getScanID(genoData)
+ covMatList <- list(kinAuto) # this is the X chr kinship matrix for all samples
+  names(covMatList) <- c("kinshipAutos")
+
+  varCompBoth <- estVarComp(scan1,covMatList=covMatList,"pheno")
+  varBothci <- estVarCompCI(varCompBoth,prop=FALSE)
+estVarCompCI(varCompBoth,prop=TRUE)
+
+
+  	SIGMA<-nullmod$theta[1]*2*kins+nullmod$theta[2]*diag(n)
+SIGMAi <- solve(SIGMA)
+diff_vars <- SIGMAi-varCompBoth$cholSigmaInv
+mean(diff_vars)
+max(diff_vars) # 0.02 -- is this a lot?
+min(diff_vars)
+```
+
+GREAT! so SIGMAi == varCompBoth$cholSigmaInv, I think.
+Can continue to calculate Q and P and the eigenvalues based upon the inverse from Matt's function to allow for more random effects in the model.
+
+Do this 1,000 times to be sure they are equal. See code in test\_code.R and output in test\_code.Rout. 
+Read in the mean, min and max difference between the var comp estimates from famSKAT vs estVarComp functions.
+
+```{r}
+setwd("/projects/geneva/geneva_sata/caitlin/keats_x")
+sims <- read.table("testRes.txt",header=TRUE,as.is=T)
+dim(sims); head(sims) # 1000 3
+
+summary(sims$mean)
+summary(sims$min)
+summary(sims$max)
+```
+The max difference between the two results can be as large as 0.136, which is pretty large, but on average the difference is very close to zero (mean mean of 1,000 sims is 1.9e-06).
+
+Next step, get the residuals from the model fit. When do we do this with Matt's code? We run the null model and save the residuals in there. Run this 1,000 times to be sure they are equal.
+
+```{r}
+sims <- read.table("testResids.txt",header=TRUE,as.is=TRUE)
+dim(sims); head(sims)
+
+summary(sims$mean)
+summary(sims$min)
+summary(sims$max)
+```
+They look great. We can use Matt's code to get the info we need to calculate the score test statistic and then we can go from there. Now to understand the null distribution of our test stat and how to get the pvalue corresponding to it!
+
+Compare what evals I think I need with the evals that they calculate -- make sure they are the same. If so, we're all set! They look good.
+
+Now I just need to run some simulations comparing my method to the famSKAT code and store the results.
+Submit test_code.R which simulates genotypes, covariates, runs famSKAT and keatsX.
+These are null runs, so we could calculate type I error with these. Maybe also run time?
+
+
+\section{Simulating Genotypes}
+Need to simulate genotypes with varying allele frequencies and LD structure. 
+HapSim samples from a bernoulli dist with marginal distribution that is exactly the allele freq you want, where the corr between markers (or draws from the dist) follows the LD structure you desire.
+
+To calculate the LD structure as observed in a set of MXL or CEU or YRI samples, we first find the 
+haplotypes for a given set of 100 markers, say. 
+Then, we find the correlation among a matrix of (sampx2) x (100 markers).
+We calculate the frequency of each marker in the set of haplotypes and take the qnorm of those
+frequencies. 
+Finally, we calculate the `covariance matrix' by calling a function modified for R from the HapSim software.
+```{r}
+library(pbivnorm)
+source("hapsim_functions.R")
+
+afreq <- apply(haps9,1,function(x){sum(x)/128})
+C <- cor(t(haps9[1:100,]))
+nloci=100
+P <- afreq[1:100]
+Q <- qnorm(P)
+null.mat <- matrix(0, nrow=nloci,ncol=nloci)
+vmat <- covmat(as.integer(nloci),C,P,Q)
+ld9 <- matrix(vmat, nrow=nloci, ncol=nloci)
+```
+
+We can make haplotypes that follow the LD structure as observed on the X chr in MXL, ASW or CEU samples.
+Create admixed samples where the haplotypes are formed from CEU and YRI samples. 
+Also create non-admixed samples where the haplotypes are just CEU. 
+(So maybe don't need MXL LD structure.)
+
+Simulate sample size of 2,000 = 250 iterations of 8 person pedigree. 
+Choose 20 variants from chr 9 (an autosome) where MAF is sampled from U(0.005, 0.05). Use LD structure where 
+neighboring SNPs have LD = 0.5 and the LD structure decays in AR-1 fashion. Do the same thing for X chromosome SNPs. Consider the 8 person pedigree where there are more males than females, and also the 8 person pedigree 
+that has a balanced number of females and males.
+
+We first consider 10,000 iterations to calculate type I error for the 8 person `balanced' pedigree. The results for testing a set of 20 autosomal variants are as follows.
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8pedfem_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("auto","x","both","method")
+dat <- dat[!duplicated(dat$auto),]
+
+tyI_group <- dat %>% filter(!is.na(method)) %>%
+  filter(auto<=1) %>% # this filters out the Q stat rows
+  gather(model,pval,-method) %>%
+  group_by(model,method)
+
+summarize(tyI_group,n()) 
+summarize(tyI_group,tyI_err=sum(pval<0.05)/n())
+summarize(tyI_group,tyI_err=sum(pval<0.005)/n())
+```
+
+The results for testing a set of 20 X chromosome variants are as follows.
+```{r}
+##
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8pedfem_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("auto","x","both","method")
+dat <- dat[!duplicated(dat$auto),]
+
+tyI_group <- dat %>% filter(!is.na(method)) %>%
+  filter(auto<=1) %>% # this filters out the Q stat rows
+  gather(model,pval,-method) %>%
+  group_by(model,method)
+
+summarize(tyI_group,n())
+summarize(tyI_group,tyI_err=sum(pval<0.05)/n())
+summarize(tyI_group,tyI_err=sum(pval<0.005)/n())
+```
+
+Next, we consider 10,000 iterations to calculate type I error for the 8 person `male-centric' pedigree, when testing an autosomal set of 20 variants for association.
+```{r}
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8ped_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("auto","x","both","method")
+dat <- dat[!duplicated(dat$auto),]
+
+tyI_group <- dat %>% filter(!is.na(method)) %>%
+  filter(auto<=1) %>% # this filters out the Q stat rows
+  gather(model,pval,-method) %>%
+  group_by(model,method)
+
+summarize(tyI_group,n()) 
+summarize(tyI_group,tyI_err=sum(pval<0.05)/n())
+summarize(tyI_group,tyI_err=sum(pval<0.005)/n())
+```
+
+And when testing an X chromosome set of 20 variants for (false) association.
+```{r}
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8ped_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("auto","x","both","method")
+dat <- dat[!duplicated(dat$auto),]
+
+tyI_group <- dat %>% filter(!is.na(method)) %>%
+  filter(auto<=1) %>% # this filters out the Q stat rows
+  gather(model,pval,-method) %>%
+  group_by(model,method)
+
+summarize(tyI_group,n()) 
+summarize(tyI_group,tyI_err=sum(pval<0.05)/n())
+summarize(tyI_group,tyI_err=sum(pval<0.005)/n())
+```
+
+
