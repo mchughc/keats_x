@@ -13,7 +13,9 @@
 # 9. Visualize LD structure
 # 10. More tyIerr sims
 # 11. Combine all null simulations for tyI error table
-# 12. Implement burden tests for sims, too
+# 12. Process power results 25/25/50
+# 13. Process power results 40/40/20, 50/0/50
+# 14. Process power results 40/40/20; diff sigmaA, sigmaX values
 
 
 
@@ -1216,7 +1218,7 @@ library(GWASTools)
 dat <- read_delim("nullSims_8ped_chr9_ld05_ar1/allRes.txt",
                                delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
-colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
 dat <- filter(dat,!is.na(stat))
 
 chr9_8ped_ar1 <- dat[!duplicated(dat$famSKAT),]
@@ -1224,7 +1226,10 @@ chr9_8ped_ar1 <- chr9_8ped_ar1 %>%
   mutate(famSKAT=as.numeric(famSKAT)) %>%
   mutate(XKC_only=as.numeric(XKC_only)) %>%
   mutate(KEATS_X=as.numeric(KEATS_X)) %>%
-  filter(famSKAT<=1) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
   mutate(chr="autosomal") %>%
   mutate(ped="8ped") %>%
   mutate(ld="AR1_0.5")
@@ -1232,7 +1237,12 @@ chr9_8ped_ar1 <- chr9_8ped_ar1 %>%
 dat <- read_delim("nullSims_8ped_chr9ceu/allRes.txt",
                   delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
-colnames(dat) <- c("famSKAT","XKC_only","KEATS-X","stat")
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+dat <- dat %>% 
+  mutate(burden_SKAT=NA) %>%
+  mutate(burden_XKC_only=NA) %>%
+  mutate(burden_KEATS=NA)
+dat <- dat[,c(1,2,3,5,6,7,4)]
 dat <- filter(dat,stat=="pval")
 chr9_8ped_ceu <- dat[!duplicated(dat$famSKAT),]
 chr9_8ped_ceu <- chr9_8ped_ceu %>%
@@ -1243,7 +1253,12 @@ chr9_8ped_ceu <- chr9_8ped_ceu %>%
 dat <- read_delim("nullSims_8ped_chr9mxl/allRes.txt",
                   delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
-colnames(dat) <- c("famSKAT","XKC_only","KEATS-X","stat")
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+dat <- dat %>% 
+  mutate(burden_SKAT=NA) %>%
+  mutate(burden_XKC_only=NA) %>%
+  mutate(burden_KEATS=NA)
+dat <- dat[,c(1,2,3,5,6,7,4)]
 dat <- filter(dat,stat=="pval")
 chr9_8ped_mxl <- dat[!duplicated(dat$famSKAT),]
 chr9_8ped_mxl <- chr9_8ped_mxl %>%
@@ -1254,7 +1269,7 @@ chr9_8ped_mxl <- chr9_8ped_mxl %>%
 dat <- read_delim("nullSims_8pedfem_chr9_ld05_ar1/allRes.txt",
                   delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
-colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
 dat <- filter(dat,!is.na(stat))
 
 chr9_8pedfem_ar1 <- dat[!duplicated(dat$famSKAT),]
@@ -1262,7 +1277,10 @@ chr9_8pedfem_ar1 <- chr9_8pedfem_ar1 %>%
   mutate(famSKAT=as.numeric(famSKAT)) %>%
   mutate(XKC_only=as.numeric(XKC_only)) %>%
   mutate(KEATS_X=as.numeric(KEATS_X)) %>%
-  filter(famSKAT<=1) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
   mutate(chr="autosomal") %>%
   mutate(ped="8pedfem") %>%
   mutate(ld="AR1_0.5")
@@ -1270,7 +1288,12 @@ chr9_8pedfem_ar1 <- chr9_8pedfem_ar1 %>%
 dat <- read_delim("nullSims_8pedfem_chr9ceu/allRes.txt",
                   delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
-colnames(dat) <- c("famSKAT","XKC_only","KEATS-X","stat")
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+dat <- dat %>% 
+  mutate(burden_SKAT=NA) %>%
+  mutate(burden_XKC_only=NA) %>%
+  mutate(burden_KEATS=NA)
+dat <- dat[,c(1,2,3,5,6,7,4)]
 dat <- filter(dat,stat=="pval")
 chr9_8pedfem_ceu <- dat[!duplicated(dat$famSKAT),]
 chr9_8pedfem_ceu <- chr9_8pedfem_ceu %>%
@@ -1281,7 +1304,12 @@ chr9_8pedfem_ceu <- chr9_8pedfem_ceu %>%
 dat <- read_delim("nullSims_8pedfem_chr9mxl/allRes.txt",
                   delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
-colnames(dat) <- c("famSKAT","XKC_only","KEATS-X","stat")
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+dat <- dat %>% 
+  mutate(burden_SKAT=NA) %>%
+  mutate(burden_XKC_only=NA) %>%
+  mutate(burden_KEATS=NA)
+dat <- dat[,c(1,2,3,5,6,7,4)]
 dat <- filter(dat,stat=="pval")
 chr9_8pedfem_mxl <- dat[!duplicated(dat$famSKAT),]
 chr9_8pedfem_mxl <- chr9_8pedfem_mxl %>%
@@ -1292,7 +1320,7 @@ chr9_8pedfem_mxl <- chr9_8pedfem_mxl %>%
 dat <- read_delim("nullSims_8ped_chrX_ld05_ar1/allRes.txt",
                   delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
-colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
 dat <- filter(dat,!is.na(stat))
 
 x_8ped_ar1 <- dat[!duplicated(dat$famSKAT),]
@@ -1300,7 +1328,10 @@ x_8ped_ar1 <- x_8ped_ar1 %>%
   mutate(famSKAT=as.numeric(famSKAT)) %>%
   mutate(XKC_only=as.numeric(XKC_only)) %>%
   mutate(KEATS_X=as.numeric(KEATS_X)) %>%
-  filter(famSKAT<=1) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
   mutate(chr="X") %>%
   mutate(ped="8ped") %>%
   mutate(ld="AR1_0.5")
@@ -1309,6 +1340,11 @@ dat <- read_delim("nullSims_8ped_chrXceu/allRes.txt",
                   delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
 colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+dat <- dat %>% 
+  mutate(burden_SKAT=NA) %>%
+  mutate(burden_XKC_only=NA) %>%
+  mutate(burden_KEATS=NA)
+dat <- dat[,c(1,2,3,5,6,7,4)]
 dat <- filter(dat,stat=="pval")
 x_8ped_ceu <- dat[!duplicated(dat$famSKAT),]
 x_8ped_ceu <- x_8ped_ceu %>%
@@ -1320,6 +1356,11 @@ dat <- read_delim("nullSims_8ped_chrXmxl/allRes.txt",
                   delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
 colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+dat <- dat %>% 
+  mutate(burden_SKAT=NA) %>%
+  mutate(burden_XKC_only=NA) %>%
+  mutate(burden_KEATS=NA)
+dat <- dat[,c(1,2,3,5,6,7,4)]
 dat <- filter(dat,stat=="pval")
 x_8ped_mxl <- dat[!duplicated(dat$famSKAT),]
 x_8ped_mxl <- x_8ped_mxl %>%
@@ -1340,6 +1381,7 @@ x_8pedfem_ar1 <- x_8pedfem_ar1 %>%
   mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
   mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
   mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
   mutate(chr="X") %>%
   mutate(ped="8pedfem") %>%
   mutate(ld="AR1_0.5")
@@ -1347,7 +1389,12 @@ x_8pedfem_ar1 <- x_8pedfem_ar1 %>%
 dat <- read_delim("nullSims_8pedfem_chrXceu/allRes.txt",
                   delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
-colnames(dat) <- c("famSKAT","XKC_only","KEATS-X","stat")
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+dat <- dat %>% 
+  mutate(burden_SKAT=NA) %>%
+  mutate(burden_XKC_only=NA) %>%
+  mutate(burden_KEATS=NA)
+dat <- dat[,c(1,2,3,5,6,7,4)]
 dat <- filter(dat,stat=="pval")
 x_8pedfem_ceu <- dat[!duplicated(dat$famSKAT),]
 x_8pedfem_ceu <- x_8pedfem_ceu %>%
@@ -1358,7 +1405,12 @@ x_8pedfem_ceu <- x_8pedfem_ceu %>%
 dat <- read_delim("nullSims_8pedfem_chrXmxl/allRes.txt",
                   delim=" ",col_names=FALSE,skip=1)
 dat <- mutate(dat,X1=NULL)
-colnames(dat) <- c("famSKAT","XKC_only","KEATS-X","stat")
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","stat")
+dat <- dat %>% 
+  mutate(burden_SKAT=NA) %>%
+  mutate(burden_XKC_only=NA) %>%
+  mutate(burden_KEATS=NA)
+dat <- dat[,c(1,2,3,5,6,7,4)]
 dat <- filter(dat,stat=="pval")
 x_8pedfem_mxl <- dat[!duplicated(dat$famSKAT),]
 x_8pedfem_mxl <- x_8pedfem_mxl %>%
@@ -1366,35 +1418,1202 @@ x_8pedfem_mxl <- x_8pedfem_mxl %>%
   mutate(ped="8pedfem") %>%
   mutate(ld="MXL")
 
-# merge all these together
-colnames(chr9_8ped_ceu)[3] <- "KEATS_X" 
-colnames(chr9_8ped_mxl)[3] <- "KEATS_X" 
-colnames(chr9_8pedfem_ceu)[3] <- "KEATS_X" 
-colnames(chr9_8pedfem_mxl)[3] <- "KEATS_X" 
-colnames(x_8pedfem_ceu)[3] <- "KEATS_X"
-colnames(x_8pedfem_mxl)[3] <- "KEATS_X"
+dat <- read_delim("nullSims_unrel_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- filter(dat,!is.na(stat))
+x_unrel_ar1 <- dat[!duplicated(dat$famSKAT),]
+x_unrel_ar1 <- x_unrel_ar1 %>%
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5")
 
-tyI_group <- rbind(chr9_8ped_ar1,chr9_8ped_ceu,chr9_8ped_mxl,
+dat <- read_delim("nullSims_unrel_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- filter(dat,!is.na(stat))
+chr9_unrel_ar1 <- dat[!duplicated(dat$famSKAT),]
+chr9_unrel_ar1 <- chr9_unrel_ar1 %>%
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5")
+
+# merge all these together
+tyI <- rbind(chr9_8ped_ar1,chr9_8ped_ceu,chr9_8ped_mxl,
                    chr9_8pedfem_ar1,chr9_8pedfem_ceu,chr9_8pedfem_mxl,
                    x_8ped_ar1,x_8ped_ceu,x_8ped_mxl,
-                   x_8pedfem_ar1,x_8pedfem_ceu,x_8pedfem_mxl)
+                   x_8pedfem_ar1,x_8pedfem_ceu,x_8pedfem_mxl,
+                   x_unrel_ar1,chr9_unrel_ar1)
 
-tyI_group <- tyI_group %>% 
+tyI_group <- tyI %>% 
   gather(model,pval,-c(stat,chr,ped,ld)) %>%
   mutate(pval=as.numeric(pval)) %>%
   filter(model!="XKC_only") %>%
   group_by(chr,ped,ld,model)
 
 n <- summarize(tyI_group,n()) # 1M each, only 10k of the AR1 iters
-res <- summarize(tyI_group,
-          "alpha=0.01"=sum(pval<0.01)/n(),
-          "alpha=0.001"=sum(pval<0.001)/n(),
-          "alpha=0.0001"=sum(pval<0.0001)/n())
+res <- summarize(tyI_group, 
+          "alpha_0.01"=sum(pval<0.01)/n(),
+          "alpha_0.001"=sum(pval<0.001)/n(),
+          "alpha_0.0001"=sum(pval<0.0001)/n())
+
+# want the proportions to be "wide" by model
+alpha01 <- tyI_group %>% summarize("alpha_0.01"=sum(pval<0.01)/n()) %>%
+  spread(model,alpha_0.01)
+alpha001 <- tyI_group %>% summarize("alpha_0.01"=sum(pval<0.001)/n()) %>%
+  spread(model,alpha_0.01)
+alpha0001 <- tyI_group %>% summarize("alpha_0.01"=sum(pval<0.0001)/n()) %>%
+  spread(model,alpha_0.01)
 
 # save these as xtable
 library(xtable)
-xtable(res)
+xtable(res,digits=5)
+print(xtable(cbind(alpha01[,-7],alpha001[,c(4:6,8)],alpha0001[,c(4:6,8)]),digits=c(1,1,1,1,3,3,3,3,4,4,4,4,5,5,5,5)),
+      include.rownames=FALSE)
 
 rm(list=ls())
 
 
+#####
+# 12. Process power results 
+
+library(readr); library(dplyr)
+library(tidyr); library(ggplot2)
+
+setwd("/projects/geneva/geneva_sata/caitlin/keats_x/")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8pedfem_chr9_ld05_ar1/allRes_252550_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+chr9_8pedfem_ar1_252550 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="8pedfem") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="25/25/50")
+
+# merge in 8ped iterations
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8ped_chr9_ld05_ar1/allRes_252550_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+chr9_8ped_ar1_252550 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="8ped") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="25/25/50")
+
+# merge in unrel iterations
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_unrel_chr9_ld05_ar1/allRes_252550_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+chr9_unrel_ar1_252550 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="25/25/50")
+
+# merge in x chr
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_unrel_chrX_ld05_ar1/allRes_252550_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+x_unrel_ar1_252550 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="25/25/50")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8ped_chrX_ld05_ar1/allRes_252550_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+x_8ped_ar1_252550 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="8ped") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="25/25/50")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8pedfem_chrX_ld05_ar1/allRes_252550_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+x_8pedfem_ar1_252550 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="8pedfem") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="25/25/50")
+
+# merge in other prop iterations
+# do 40/40/20 since 80/0/20 is BORING
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8ped_chrX_ld05_ar1/allRes_404020_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+x_8ped_ar1_404020 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="8ped") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="40/40/20")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8pedfem_chrX_ld05_ar1/allRes_404020_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+x_8pedfem_ar1_404020 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="8pedfem") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="40/40/20")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_unrel_chrX_ld05_ar1/allRes_404020_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+x_unrel_ar1_404020 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="40/40/20")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8pedfem_chr9_ld05_ar1/allRes_404020_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+chr9_8pedfem_ar1_404020 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="8pedfem") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="40/40/20")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8ped_chr9_ld05_ar1/allRes_404020_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+chr9_8ped_ar1_404020 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="8ped") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="40/40/20")
+
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_unrel_chr9_ld05_ar1/allRes_404020_c02.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+chr9_unrel_ar1_404020 <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="40/40/20")
+
+pow <- rbind(chr9_unrel_ar1_252550,chr9_8ped_ar1_252550,chr9_8pedfem_ar1_252550,
+             x_unrel_ar1_252550,x_8ped_ar1_252550,x_8pedfem_ar1_252550,
+             x_8ped_ar1_404020,x_8pedfem_ar1_404020, x_unrel_ar1_404020,
+             chr9_8pedfem_ar1_404020,chr9_8ped_ar1_404020,chr9_unrel_ar1_404020)
+
+pow <- pow %>%
+  gather(model,pval,-c(stat,chr,ped,ld,prop)) %>%
+  group_by(model,chr,ped,prop)
+
+n=summarize(pow,n()) # 10K of each type
+res <- summarize(pow,"alpha_0.01"=sum(pval<0.01)/n(),
+             "alpha_0.001"=sum(pval<0.001)/n())
+
+# make a graph of these results
+pdf("power_252550_alpha01_10Kiters.pdf",width=11)
+ggplot(data.frame(res),aes(x=ped,y=alpha_0.01)) + geom_point(aes(shape=model))+ facet_wrap(~chr) +
+  theme_bw() + ggtitle("h2=0.5, +/-/0=25/25/50, 20 Variants, alpha=0.01")
+dev.off()
+
+pdf("power_252550_alpha01_10Kiters_trunc.pdf",width=11)
+ggplot(data.frame(res[res$alpha_0.01>0.5,]),aes(x=ped,y=alpha_0.01)) + geom_point(aes(shape=model))+ facet_wrap(~chr) +
+  theme_bw() + ggtitle("h2=0.5, +/-/0=25/25/50, 20 Variants, alpha=0.01")
+dev.off()
+
+pdf("power_252550_alpha001_10Kiters.pdf",width=11)
+ggplot(data.frame(res),aes(x=ped,y=alpha_0.001)) + geom_point(aes(shape=model))+ facet_wrap(~chr) +
+  theme_bw() + ggtitle("h2=0.5, +/-/0=25/25/50, 20 Variants, alpha=0.001")
+dev.off()
+
+pdf("power_252550_alpha001_10Kiters_trunc.pdf",width=11)
+ggplot(data.frame(res[res$alpha_0.001>0.5,]),aes(x=ped,y=alpha_0.001)) + geom_point(aes(shape=model))+ facet_wrap(~chr) +
+  theme_bw() + ggtitle("h2=0.5, +/-/0=25/25/50, 20 Variants, alpha=0.001")
+dev.off()
+
+## we're showing lower power since tyIerror is off for famSKAT
+# need to do the power graphs we do usually
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_unrel_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+chr9_unrel_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8ped_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+chr9_8ped_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="8ped") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8pedfem_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+chr9_8pedfem_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="8pedfem") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8pedfem_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+x_8pedfem_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="8pedfem") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8ped_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+x_8ped_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="8ped") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_unrel_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+
+x_unrel_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+nullSims <- rbind(x_unrel_null,x_8ped_null,x_8pedfem_null,
+                  chr9_unrel_null,chr9_8pedfem_null,chr9_8ped_null)
+
+nullSims <- nullSims %>%
+  gather(model,pval,-c(stat,chr,ped,ld,prop)) %>%
+  group_by(model,chr,ped,prop)
+
+summarize(nullSims,n())
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+truePos <- matrix(NA,nrow=72,ncol=length(alpha))
+falsePos <- matrix(NA,nrow=36,ncol=length(alpha))
+for(i in 1:length(alpha)){
+  s <- summarize(nullSims,sum(pval<alpha[i])/n())
+  falsePos[,i] <- data.frame(s)[,5]
+  
+  s <- summarize(pow,sum(pval<alpha[i])/n())
+  truePos[,i] <- data.frame(s)[,5]
+}
+
+# make a plot of these two values
+s <- summarize(pow,n())
+truePos <- cbind(data.frame(s)[,1:4],truePos)
+s <- summarize(nullSims,n())
+falsePos <- cbind(data.frame(s)[,1:4],falsePos)
+
+# first plot all autosomal results, all peds, prop=25/25/50
+smfalse <- falsePos[falsePos$chr=="autosomal",]
+smfalse$type = "null"
+smtrue <- truePos[truePos$chr=="autosomal"&truePos$prop=="25/25/50",]
+smtrue$type = "true"
+allres <- rbind(smfalse,smtrue)
+
+allres <- allres %>%
+  gather(iter,rate,-c(model,chr,ped,prop))
+allres$prop[allres$prop=="25/25/50"]<- "true"
+allres$rate <- as.numeric(allres$rate)
+
+toPl <- allres %>%
+  spread(prop,rate) 
+
+pdf("power_autoSNP_true252550_trunc.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  facet_wrap(~ped) + ggtitle("20 Autosomal Variants, +/-/0=25/25/50")+ scale_x_continuous(limits=c(0,0.1))
+dev.off()
+
+pdf("power_autoSNP_true252550.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + 
+  facet_wrap(~ped) + ggtitle("20 Autosomal Variants, +/-/0=25/25/50")
+dev.off()
+
+# x chr results
+smfalse <- falsePos[falsePos$chr=="X",]
+smfalse$type = "null"
+smtrue <- truePos[truePos$chr=="X"&truePos$prop=="25/25/50",]
+smtrue$type = "true"
+allres <- rbind(smfalse,smtrue)
+
+allres <- allres %>%
+  gather(iter,rate,-c(model,chr,ped,prop))
+allres$prop[allres$prop=="25/25/50"]<- "true"
+allres$rate <- as.numeric(allres$rate)
+
+toPl <- allres %>%
+  spread(prop,rate) 
+
+pdf("power_xSNP_true252550_trunc.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  facet_wrap(~ped) + ggtitle("20 X Chromosome Variants, +/-/0=25/25/50")+ scale_x_continuous(limits=c(0,0.1))
+dev.off()
+
+pdf("power_xSNP_true252550.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + 
+  facet_wrap(~ped) + ggtitle("20 X Chromosome Variants, +/-/0=25/25/50")
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 13. Process power results 40/40/20, 50/0/50
+
+library(readr); library(dplyr)
+library(tidyr); library(ggplot2)
+
+setwd("/projects/geneva/geneva_sata/caitlin/keats_x/")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_unrel_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+chr9_unrel_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8ped_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+chr9_8ped_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="8ped") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8pedfem_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+chr9_8pedfem_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="8pedfem") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8pedfem_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+x_8pedfem_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="8pedfem") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8ped_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+x_8ped_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="8ped") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_unrel_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+x_unrel_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+nullSims <- rbind(x_unrel_null,x_8ped_null,x_8pedfem_null,
+                  chr9_unrel_null,chr9_8pedfem_null,chr9_8ped_null)
+nullSims <- nullSims %>%
+  gather(model,pval,-c(stat,chr,ped,ld,prop)) %>%
+  group_by(model,chr,ped,prop)
+summarize(nullSims,n())
+
+# read in power sims for 40/40/20 now
+
+readPow <- function(fn){
+  dat <- read_delim(fn,delim=" ",col_names=FALSE,skip=1)
+  dat <- mutate(dat,X1=NULL)
+  colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+  dat <- dat[!duplicated(dat$famSKAT),]
+  dat <- dat[dat$famSKAT!="x.res",]
+  tmp <- regexpr("_chr",fn)
+  chr <- substr(fn,start=tmp[1]+4,stop=tmp[1]+4)
+  tmp <- regexpr("powerSims_",fn)
+  tmp2 <- regexpr("_chr",fn)
+  ped <- substr(fn,start=tmp[1]+10,stop=tmp2[1]-4)
+  tmp <- regexpr("chr",fn)
+  tmp2 <- regexpr("/allRes",fn)
+  ld <- substr(fn,start=tmp[1]+5,stop=tmp2[1]-1)
+  tmp <- regexpr("_c0",fn)
+  prop <- substr(fn,start=tmp2[1]+8,stop=tmp[1]-1)
+  x <- dat %>% 
+    mutate(famSKAT=as.numeric(famSKAT)) %>%
+    mutate(XKC_only=as.numeric(XKC_only)) %>%
+    mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+    mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+    mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+    mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+    filter(stat=="pval") %>%
+    mutate(chr=chr) %>%
+    mutate(ped=ped) %>%
+    mutate(ld=ld) %>%
+    mutate(prop=prop)
+  
+  return(x)
+}
+
+x_8ped_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8ped_chrX_ld05_ar1/allRes_404020_c02.txt")
+x_8pedfem_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8pedfem_chrX_ld05_ar1/allRes_404020_c02.txt")
+x_unrel_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_unrel_chrX_ld05_ar1/allRes_404020_c02.txt")
+chr9_8pedfem_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8pedfem_chr9_ld05_ar1/allRes_404020_c02.txt")
+chr9_8ped_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8ped_chr9_ld05_ar1/allRes_404020_c02.txt")
+chr9_unrel_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_unrel_chr9_ld05_ar1/allRes_404020_c02.txt")
+
+pow <- rbind(x_8ped_ar1_404020,x_8pedfem_ar1_404020, x_unrel_ar1_404020,
+             chr9_8pedfem_ar1_404020,chr9_8ped_ar1_404020,chr9_unrel_ar1_404020)
+
+pow$ped[pow$ped=="8ped"] <- "8pedfem"
+pow$ped[pow$ped=="8"] <- "8ped"
+pow$ped[pow$ped=="un"] <- "unrel"
+pow$chr[pow$chr=="9"] <- "autosomal"
+pow <- pow %>%
+  gather(model,pval,-c(stat,chr,ped,ld,prop)) %>%
+  group_by(model,chr,ped,prop)
+
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+truePos <- matrix(NA,nrow=36,ncol=length(alpha))
+falsePos <- matrix(NA,nrow=36,ncol=length(alpha))
+for(i in 1:length(alpha)){
+  s <- summarize(nullSims,sum(pval<alpha[i])/n())
+  falsePos[,i] <- data.frame(s)[,5]
+  
+  s <- summarize(pow,sum(pval<alpha[i])/n())
+  truePos[,i] <- data.frame(s)[,5]
+}
+
+# make a plot of these two values
+s <- summarize(pow,n())
+truePos <- cbind(data.frame(s)[,1:4],truePos)
+s <- summarize(nullSims,n())
+falsePos <- cbind(data.frame(s)[,1:4],falsePos)
+
+# first plot all autosomal results, all peds, prop=404020
+smfalse <- falsePos[falsePos$chr=="autosomal",]
+smfalse$type = "null"
+
+smtrue <- truePos[truePos$chr=="autosomal"&truePos$prop=="404020",]
+smtrue$type = "true"
+allres <- rbind(smfalse,smtrue)
+
+allres <- allres %>%
+  gather(iter,rate,-c(model,chr,ped,prop))
+allres$prop[allres$prop=="404020"]<- "true"
+allres$rate <- as.numeric(allres$rate)
+
+toPl <- allres %>%
+  spread(prop,rate) 
+
+pdf("power_autoSNP_true404020trunc.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  facet_wrap(~ped) + ggtitle("20 Autosomal Variants, +/-/0=40/40/20")+ scale_x_continuous(limits=c(0,0.1))
+dev.off()
+
+pdf("power_autoSNP_true404020.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + 
+  facet_wrap(~ped) + ggtitle("20 Autosomal Variants, +/-/0=40/40/20")
+dev.off()
+
+# x chr results
+smfalse <- falsePos[falsePos$chr=="X",]
+smfalse$type = "null"
+smtrue <- truePos[truePos$chr=="X"&truePos$prop=="404020",]
+smtrue$type = "true"
+allres <- rbind(smfalse,smtrue)
+
+allres <- allres %>%
+  gather(iter,rate,-c(model,chr,ped,prop))
+allres$prop[allres$prop=="404020"]<- "true"
+allres$rate <- as.numeric(allres$rate)
+
+toPl <- allres %>%
+  spread(prop,rate) 
+
+pdf("power_xSNP_true404020_trunc.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  facet_wrap(~ped) + ggtitle("20 X Chromosome Variants, +/-/0=40/40/20")+ scale_x_continuous(limits=c(0,0.1))
+dev.off()
+
+pdf("power_xSNP_true404020.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + 
+  facet_wrap(~ped) + ggtitle("20 X Chromosome Variants, +/-/0=40/40/20")
+dev.off()
+
+## read in 50/0/50 results
+
+x_8ped_ar1_50050 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8ped_chrX_ld05_ar1/allRes_50050_c02.txt")
+x_8pedfem_ar1_50050 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8pedfem_chrX_ld05_ar1/allRes_50050_c02.txt")
+x_unrel_ar1_50050 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_unrel_chrX_ld05_ar1/allRes_50050_c02.txt")
+chr9_8pedfem_ar1_50050 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8pedfem_chr9_ld05_ar1/allRes_50050_c02.txt")
+chr9_8ped_ar1_50050 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8ped_chr9_ld05_ar1/allRes_50050_c02.txt")
+chr9_unrel_ar1_50050 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_unrel_chr9_ld05_ar1/allRes_50050_c02.txt")
+
+pow <- rbind(x_8ped_ar1_50050,x_8pedfem_ar1_50050, x_unrel_ar1_50050,
+             chr9_8pedfem_ar1_50050,chr9_8ped_ar1_50050,chr9_unrel_ar1_50050)
+
+pow$ped[pow$ped=="8ped"] <- "8pedfem"
+pow$ped[pow$ped=="8"] <- "8ped"
+pow$ped[pow$ped=="un"] <- "unrel"
+pow$chr[pow$chr=="9"] <- "autosomal"
+pow <- pow %>%
+  gather(model,pval,-c(stat,chr,ped,ld,prop)) %>%
+  group_by(model,chr,ped,prop)
+
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+truePos <- matrix(NA,nrow=36,ncol=length(alpha))
+falsePos <- matrix(NA,nrow=36,ncol=length(alpha))
+for(i in 1:length(alpha)){
+  s <- summarize(nullSims,sum(pval<alpha[i])/n())
+  falsePos[,i] <- data.frame(s)[,5]
+  
+  s <- summarize(pow,sum(pval<alpha[i])/n())
+  truePos[,i] <- data.frame(s)[,5]
+}
+
+# make a plot of these two values
+s <- summarize(pow,n())
+truePos <- cbind(data.frame(s)[,1:4],truePos)
+s <- summarize(nullSims,n())
+falsePos <- cbind(data.frame(s)[,1:4],falsePos)
+
+# first plot all autosomal results, all peds, prop=50050
+smfalse <- falsePos[falsePos$chr=="autosomal",]
+smfalse$type = "null"
+
+smtrue <- truePos[truePos$chr=="autosomal"&truePos$prop=="50050",]
+smtrue$type = "true"
+allres <- rbind(smfalse,smtrue)
+
+allres <- allres %>%
+  gather(iter,rate,-c(model,chr,ped,prop))
+allres$prop[allres$prop=="50050"]<- "true"
+allres$rate <- as.numeric(allres$rate)
+
+toPl <- allres %>%
+  spread(prop,rate) 
+
+pdf("power_autoSNP_true50050trunc.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  facet_wrap(~ped) + ggtitle("20 Autosomal Variants, +/-/0=50/0/50")+ scale_x_continuous(limits=c(0,0.1))
+dev.off()
+
+pdf("power_autoSNP_true50050.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + 
+  facet_wrap(~ped) + ggtitle("20 Autosomal Variants, +/-/0=50/0/50")
+dev.off()
+
+# x chr results
+smfalse <- falsePos[falsePos$chr=="X",]
+smfalse$type = "null"
+smtrue <- truePos[truePos$chr=="X"&truePos$prop=="50050",]
+smtrue$type = "true"
+allres <- rbind(smfalse,smtrue)
+
+allres <- allres %>%
+  gather(iter,rate,-c(model,chr,ped,prop))
+allres$prop[allres$prop=="50050"]<- "true"
+allres$rate <- as.numeric(allres$rate)
+
+toPl <- allres %>%
+  spread(prop,rate) 
+
+pdf("power_xSNP_true50050_trunc.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  facet_wrap(~ped) + ggtitle("20 X Chromosome Variants, +/-/0=50/0/50")+ scale_x_continuous(limits=c(0,0.1))
+dev.off()
+
+pdf("power_xSNP_true50050.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + 
+  facet_wrap(~ped) + ggtitle("20 X Chromosome Variants, +/-/0=50/0/50")
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 14. Process power results 40/40/20; diff sigmaA, sigmaX values
+
+library(readr); library(dplyr)
+library(tidyr); library(ggplot2)
+
+setwd("/projects/geneva/geneva_sata/caitlin/keats_x/")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_unrel_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+chr9_unrel_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8ped_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+chr9_8ped_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="8ped") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8pedfem_chr9_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+chr9_8pedfem_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="autosomal") %>%
+  mutate(ped="8pedfem") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8pedfem_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+x_8pedfem_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="8pedfem") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_8ped_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+x_8ped_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="8ped") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+dat <- read_delim("/projects/geneva/geneva_sata/caitlin/keats_x/nullSims_unrel_chrX_ld05_ar1/allRes.txt",
+                  delim=" ",col_names=FALSE,skip=1)
+dat <- mutate(dat,X1=NULL)
+colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+dat <- dat[!duplicated(dat$famSKAT),]
+dat <- dat[dat$famSKAT!="x.res",]
+x_unrel_null <- dat %>% 
+  mutate(famSKAT=as.numeric(famSKAT)) %>%
+  mutate(XKC_only=as.numeric(XKC_only)) %>%
+  mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+  mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+  mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+  mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+  filter(stat=="pval") %>%
+  mutate(chr="X") %>%
+  mutate(ped="unrel") %>%
+  mutate(ld="AR1_0.5") %>%
+  mutate(prop="null")
+
+nullSims <- rbind(x_unrel_null,x_8ped_null,x_8pedfem_null,
+                  chr9_unrel_null,chr9_8pedfem_null,chr9_8ped_null)
+nullSims <- nullSims %>%
+  gather(model,pval,-c(stat,chr,ped,ld,prop)) %>%
+  group_by(model,chr,ped,prop)
+summarize(nullSims,n())
+
+# read in power sims for 40/40/20, h06 
+
+readPow <- function(fn){
+  dat <- read_delim(fn,delim=" ",col_names=FALSE,skip=1)
+  dat <- mutate(dat,X1=NULL)
+  colnames(dat) <- c("famSKAT","XKC_only","KEATS_X","burden_SKAT","burden_XKC_only","burden_KEATS","stat")
+  dat <- dat[!duplicated(dat$famSKAT),]
+  dat <- dat[dat$famSKAT!="x.res",]
+  tmp <- regexpr("_chr",fn)
+  chr <- substr(fn,start=tmp[1]+4,stop=tmp[1]+4)
+  tmp <- regexpr("powerSims_",fn)
+  tmp2 <- regexpr("_chr",fn)
+  ped <- substr(fn,start=tmp[1]+10,stop=tmp2[1]-4)
+  tmp <- regexpr("chr",fn)
+  tmp2 <- regexpr("/allRes",fn)
+  ld <- substr(fn,start=tmp[1]+5,stop=tmp2[1]-1)
+  tmp <- regexpr("_c0",fn)
+  prop <- substr(fn,start=tmp2[1]+8,stop=tmp[1]-1)
+  x <- dat %>% 
+    mutate(famSKAT=as.numeric(famSKAT)) %>%
+    mutate(XKC_only=as.numeric(XKC_only)) %>%
+    mutate(KEATS_X=as.numeric(KEATS_X)) %>%
+    mutate(burden_SKAT=as.numeric(burden_SKAT)) %>%
+    mutate(burden_XKC_only=as.numeric(burden_XKC_only)) %>%
+    mutate(burden_KEATS=as.numeric(burden_KEATS)) %>%
+    filter(stat=="pval") %>%
+    mutate(chr=chr) %>%
+    mutate(ped=ped) %>%
+    mutate(ld=ld) %>%
+    mutate(prop=prop)
+  
+  return(x)
+}
+
+x_8ped_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8ped_chrX_ld05_ar1/allRes_404020_c02_h06.txt")
+x_8pedfem_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8pedfem_chrX_ld05_ar1/allRes_404020_c02_h06.txt")
+x_unrel_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_unrel_chrX_ld05_ar1/allRes_404020_c02_h06.txt")
+chr9_8pedfem_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8pedfem_chr9_ld05_ar1/allRes_404020_c02_h06.txt")
+chr9_8ped_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_8ped_chr9_ld05_ar1/allRes_404020_c02_h06.txt")
+chr9_unrel_ar1_404020 <- readPow("/projects/geneva/geneva_sata/caitlin/keats_x/powerSims_unrel_chr9_ld05_ar1/allRes_404020_c02_h06.txt")
+
+pow <- rbind(x_8ped_ar1_404020,x_8pedfem_ar1_404020, x_unrel_ar1_404020,
+             chr9_8pedfem_ar1_404020,chr9_8ped_ar1_404020,chr9_unrel_ar1_404020)
+
+pow$ped[pow$ped=="8ped"] <- "8pedfem"
+pow$ped[pow$ped=="8"] <- "8ped"
+pow$ped[pow$ped=="un"] <- "unrel"
+pow$chr[pow$chr=="9"] <- "autosomal"
+pow <- pow %>%
+  gather(model,pval,-c(stat,chr,ped,ld,prop)) %>%
+  group_by(model,chr,ped,prop)
+
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+truePos <- matrix(NA,nrow=36,ncol=length(alpha))
+falsePos <- matrix(NA,nrow=36,ncol=length(alpha))
+for(i in 1:length(alpha)){
+  s <- summarize(nullSims,sum(pval<alpha[i])/n())
+  falsePos[,i] <- data.frame(s)[,5]
+  
+  s <- summarize(pow,sum(pval<alpha[i])/n())
+  truePos[,i] <- data.frame(s)[,5]
+}
+
+# make a plot of these two values
+s <- summarize(pow,n())
+truePos <- cbind(data.frame(s)[,1:4],truePos)
+s <- summarize(nullSims,n())
+falsePos <- cbind(data.frame(s)[,1:4],falsePos)
+
+# first plot all autosomal results, all peds, prop=404020
+smfalse <- falsePos[falsePos$chr=="autosomal",]
+smfalse$type = "null"
+
+smtrue <- truePos[truePos$chr=="autosomal"&truePos$prop=="404020",]
+smtrue$type = "true"
+allres <- rbind(smfalse,smtrue)
+
+allres <- allres %>%
+  gather(iter,rate,-c(model,chr,ped,prop))
+allres$prop[allres$prop=="404020"]<- "true"
+allres$rate <- as.numeric(allres$rate)
+
+toPl <- allres %>%
+  spread(prop,rate) 
+
+pdf("power_autoSNP_true404020_h06_trunc.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  facet_wrap(~ped) + ggtitle("20 Autosomal Variants, +/-/0=40/40/20")+ scale_x_continuous(limits=c(0,0.1))
+dev.off()
+
+pdf("power_autoSNP_true404020_h06.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + 
+  facet_wrap(~ped) + ggtitle("20 Autosomal Variants, +/-/0=40/40/20")
+dev.off()
+
+# x chr results
+smfalse <- falsePos[falsePos$chr=="X",]
+smfalse$type = "null"
+smtrue <- truePos[truePos$chr=="X"&truePos$prop=="404020",]
+smtrue$type = "true"
+allres <- rbind(smfalse,smtrue)
+
+allres <- allres %>%
+  gather(iter,rate,-c(model,chr,ped,prop))
+allres$prop[allres$prop=="404020"]<- "true"
+allres$rate <- as.numeric(allres$rate)
+
+toPl <- allres %>%
+  spread(prop,rate) 
+
+pdf("power_xSNP_true404020_h06_trunc.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  facet_wrap(~ped) + ggtitle("20 X Chromosome Variants, +/-/0=40/40/20")+ scale_x_continuous(limits=c(0,0.1))
+dev.off()
+
+pdf("power_xSNP_true404020_h06.pdf",width=20)
+ggplot(toPl,aes(x=null,y=true,color=model)) + 
+  geom_line(size=1) + theme_bw() + 
+  facet_wrap(~ped) + ggtitle("20 X Chromosome Variants, +/-/0=40/40/20")
+dev.off()
+
+rm(list=ls())
+
+
+#####
+
+
+
+
+
+
+
+paste sim1*_maf.txt >> maf1.txt
+paste sim2*_maf.txt >> maf2.txt
+paste sim3*_maf.txt >> maf3.txt
+paste sim4*_maf.txt >> maf4.txt
+paste sim5*_maf.txt >> maf5.txt
+paste sim6*_maf.txt >> maf6.txt
+paste sim7*_maf.txt >> maf7.txt
+paste sim8*_maf.txt >> maf8.txt
+paste sim9*_maf.txt >> maf9.txt
+paste maf1.txt maf2.txt maf3.txt maf4.txt maf5.txt maf6.txt maf7.txt maf8.txt maf9.txt >> allMaf.txt
+rm maf1.txt maf2.txt maf3.txt maf4.txt maf5.txt maf6.txt maf7.txt maf8.txt maf9.txt
