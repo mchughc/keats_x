@@ -1,0 +1,150 @@
+## setwd("C:\\Users\\mcwu\\Desktop\\Exercises\\Lecture10")
+
+##################################################################################################################
+##################################################################################################################
+### R Scripts: let's analyze chr22 for association with Y1 using both SKAT and also count based collapsing
+
+
+library(SKAT)
+
+
+
+# Create the MW File
+File.Bed<-"./ExomeChr22.bed"
+File.Bim<-"./ExomeChr22.bim"
+File.Fam<-"./ExomeChr22.fam"
+File.Cov<-"./ExomeChr22.Cov"
+File.SetID<-"./ExomeChr22.SetID"
+File.SSD<-"./ExomeChr22.SSD"
+File.Info<-"./ExomeChr22.SSD.info"
+
+# To use binary ped files, you have to generate SSD file first.
+# If you already have a SSD file, you do not need to call this function.
+Generate_SSD_SetID(File.Bed, File.Bim, File.Fam, File.SetID, File.SSD, File.Info)
+
+##############################################
+# 	Open SSD, and Run SKAT
+#
+
+FAM<-Read_Plink_FAM_Cov(File.Fam, File.Cov)
+obj<-SKAT_Null_Model(Y1~X1+X2, out_type="C", data=FAM)
+
+
+#
+# To use a SSD file, please open it first.
+#
+SSD.INFO<-Open_SSD(File.SSD, File.Info)
+
+# Number of samples
+SSD.INFO$nSample
+
+# Number of Sets
+SSD.INFO$nSets
+
+
+re.SKAT<-SKAT.SSD.All(SSD.INFO, obj) ## original SKAT
+
+re.Burden<-SKAT.SSD.All(SSD.INFO, obj,r.corr=1) ## weighted count based collapsing
+
+re.SKATO<-SKAT.SSD.All(SSD.INFO, obj, method="optimal.adj")  ## optimal omnibus test
+
+
+##################################################################################################################
+##################################################################################################################
+### Re-analyzing the transferrin data set: THIS WILL USE BOTH PLINK AND R SCRIPTS
+
+### Make sure that you are in the correct directory (where the transferrin data set is)
+### we will need to create the setID file: this is often the most irritating part
+### We begin by downloading the refseq transcripts (this is in the refGene.txt file).  Then the following code will
+### generate the setIDs.
+
+##################################################################################################################
+### R script for generating gene list
+
+refgenes = read.table("refGene.txt", sep = "\t", as.is = T, quote = "", header = F)
+dim(refgenes)
+
+chrs = refgenes[,3]  # chromosomes, but there is a lot of junk in the chromsome names here that needs to be filtered.
+
+chrs = sapply(strsplit(chrs,"[r_]"),"[", 2)
+omits = c(which(chrs == "Y"), which(chrs=="X")) ## drop sex chromosomes
+
+out = cbind(chrs[-omits], refgenes[-omits, 5], refgenes[-omits, 6], refgenes[-omits, 13], refgenes[-omits, 13])
+
+write.table(out, file = "gene.list", sep = "\t", quote =F, row.name = F, col.name = F)
+
+
+### Note that there are multiple transcripts per gene, so we will condense these.
+### In reality, we could also do a transcript level analysis.
+
+
+##################################################################################################################
+### plink script for generating set ids (not quite ready for skat format yet)
+
+plink --bfile transferrin --make-set gene.list --make-set-collapse-group --write-set
+
+
+##################################################################################################################
+### R script for generating setIDs which can be fed to SKAT
+
+sets = scan("plink.set", what = "char")
+
+setname = sets[1]
+i = 2
+
+sink("transferrin.SetID")
+
+while (1) {
+  while (sets[i] != "END") {
+      cat(setname,"\t",sets[i],"\n", sep = "")
+      i = i+1
+  }
+  if (i == length(sets))
+      break;
+  i = i+1
+  setname = sets[i]
+  i = i+1
+}
+sink()
+
+### NOTE: I  HAVE NOT BEEN CAREFUL ABOUT MATCHING REFSEQ GENE DEFINITIONS TO THE VERSION OF THE
+### GENOME USED IN THE TRANSFERRIN DATA!!! YOU WILL NEED TO DO THIS IF YOU HAVE YOUR OWN DATA.
+
+##################################################################################################################
+### R script for doing the analysis with SKAT
+
+# Create the MW File
+File.Bed<-"./Transferrin.bed"
+File.Bim<-"./Transferrin.bim"
+#File.Fam<-"./Transferrin.fam"
+File.Cov<-"./Tr.pheno"
+File.SetID<-"./Transferrin.SetID"
+File.SSD<-"./Transferrin.SSD"
+File.Info<-"./Transferrin.SSD.info"
+
+# To use binary ped files, you have to generate SSD file first.
+# If you already have a SSD file, you do not need to call this function.
+Generate_SSD_SetID(File.Bed, File.Bim, File.Fam, File.SetID, File.SSD, File.Info)
+
+##############################################
+# 	Open SSD, and Run SKAT
+#
+
+phenotypes = read.table(File.Cov, header = F)
+y = phenotypes[,3]
+obj<-SKAT_Null_Model(y~1, out_type="C")
+
+
+#
+# To use a SSD file, please open it first.
+#
+SSD.INFO<-Open_SSD(File.SSD, File.Info)
+
+# Number of samples
+SSD.INFO$nSample
+
+# Number of Sets
+SSD.INFO$nSets
+
+
+re.SKAT<-SKAT.SSD.All(SSD.INFO, obj, kernel = "linear") ## note the use of the linear kernel

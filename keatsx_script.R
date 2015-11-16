@@ -29,6 +29,14 @@
 # 25. Parse type I error results, 50 variants
 # 26. Run KEATSO on each RBC gene region in HCHS/SOL
 # 27. Power results, keatso, chrX and auto for different mixes of +/- for 8pedFem
+# 28. Hist of p-values corresponding to #23.
+# 29. Hist of p-values corresponding to #25.
+# 30. Type I error results, 8pedFem, auto & x, comparing keatso to keatsbt and keats
+# 31. Group SNPs into genes, genome-wide
+# 32. Run KEATSO on HCHS/SOL genome-wide
+# 33. Power results, keatso, chrX and auto for different mixes of +/- for 8ped
+# 34. Hist of optimal rho values, null sims 8pedFem
+
 
 
 
@@ -3686,6 +3694,7 @@ nullSims7$prop <- "20/0/80"
 allRes <- rbind(allRes,nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4,nullSimsc,nullSimsd,nullSimse,
                 nullSims5,nullSims6,nullSims7)
 
+write.table(allRes,file="allRes_8ped_nullPow_ar1_s2as2x05.txt",row.names=FALSE,quote=FALSE)
 
 pow <- allRes %>%
   group_by(model,prop,chr,type)
@@ -3711,11 +3720,14 @@ finalR <- allres %>%
   spread(type,rate) 
 finalR$prop <- ordered(finalR$prop,levels=c("5/35/60","15/25/60","20/20/60","20/0/80","40/0/60","60/0/40"))
 
+finalR2 <- finalR[is.element(finalR$prop,c("20/0/80","40/0/60","60/0/40")),]
 # plot these results now
 pdf("power_8ped_keatsbtskat_trunc.pdf",width=14)
-ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
-  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0,1)) + 
-  scale_x_continuous(limits=c(0,0.2)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+ggplot(finalR2,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
 dev.off()
 
 rm(list=ls())
@@ -3974,8 +3986,11 @@ finalR$prop <- ordered(finalR$prop,levels=c("5/35/60","15/25/60","20/20/60"))
 pdf("power_unrel_trunc.pdf",width=14)
 ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
   geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
   scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
 dev.off()
+
 
 # make cis for power plots
 # need to calculate the se for each alpha level
@@ -5022,27 +5037,1198 @@ dev.off()
 rm(list=ls())
 
 
+#####
+# 28. Hist of p-values corresponding to #23.
+
+library(dplyr); library(readr)
+library(tidyr); library(ggplot2)
+
+setwd("/projects/geneva/geneva_sata/caitlin/keats_x/keats_optimal")
+
+# compare keats-o with monster and skato, also keats-o x only
+# make table with auto vs x - only considering the 8pedFem pedigree structure now
+# consider alpha=0.01 and 0.001
+
+# first, look at s2a=1, s2x=0
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h01_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="01") 
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h01_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims2 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="01")
+
+# now, s2a=0, s2x=1
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h10_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims3 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="10")
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h10_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims4 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="10")
+
+# now, s2a=1, s2x=1
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h11_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims5 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="11")
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h11_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims6 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="11")
+
+# now, s2a=0, s2x=0
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h00_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims7 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="00")
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h00_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims8 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="00")
+
+allTy <- rbind(nullSims,nullSims2,nullSims3,nullSims4,nullSims5,nullSims6,nullSims7,nullSims8)
+allTy$model[allTy$model=="auto"] <- "MONSTER"
+allTy$model[allTy$model=="both"] <- "KEATS-O"
+allTy$model[allTy$model=="x"] <- "KEATS-O X only"
+allTy$model[allTy$model=="unrel"] <- "SKATO"
+
+pow <- allTy %>%
+  group_by(chr,s2xa,model)
+data.frame(summarize(pow,n())) # 100K for each configuration
+
+# want histograms, one file of autosomal SNPs
+# facet_wrap by sig2xa
+
+# one file of x chr SNPs
+# facet_wrap by sig2xa
+
+tyIerrSm <- pow %>%
+  filter(chr=="X") %>%
+  filter(s2xa=="11")
+
+pdf("typeIErr_8pedFem_001_pvalueHist.pdf")
+ggplot(tyIerrSm,aes(x=pvalue)) + geom_histogram(binwidth=0.05) + 
+  theme_bw() + facet_wrap(~model,scales="free_y") +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  ylab("Frequency") + theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  xlab("P-Value, Testing X Chr SNP, 20 Variants") + 
+  ggtitle(expression(paste("P-Values for Null Sims, ", sigma[X]^2, "=1, ",sigma[A]^2,"=1")))
+dev.off()
 
 
+tyIerrSm <- pow %>%
+  filter(chr=="Autosomal") %>%
+  filter(s2xa=="11")
 
+pdf("typeIErr_8pedFem_001_autoSNP_pvalueHist.pdf")
+ggplot(tyIerrSm,aes(x=pvalue)) + geom_histogram(binwidth=0.05) + 
+  theme_bw() + facet_wrap(~model,scales="free_y") +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  ylab("Frequency") + theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  xlab("P-Value, Testing Autosomal SNP, 20 Variants") + 
+  ggtitle(expression(paste("P-Values for Null Sims, ", sigma[X]^2, "=1, ",sigma[A]^2,"=1")))
+dev.off()
+
+rm(list=ls())
 
 
 #####
-# we have keatso results for
-# 8 ped, LD ar1, wu weights
-# sig2_x=sig2_a=0.5
-# optimal vs bt
-# x chr - 4 proportions
-# autosomal - 4 proportions
+# 29. Hist of p-values corresponding to #25.
 
-# sig2_x=3, sig2_a=0.3
-# optimal vs bt
-# x chr - 4 proportions
-# autosomal - 4 proportions
+library(dplyr); library(readr)
+library(tidyr); library(ggplot2)
 
-# simulate independent variants
+setwd("/projects/geneva/geneva_sata/caitlin/keats_x/keats_optimal")
 
-# compare just keatso with keats.bt and keats.fam
-# unrelated samples with herit=0,0 is the most benign we can get
+# compare keats-o with monster and skato, also keats-o x only
+# make table with auto vs x - only considering the 8pedFem pedigree structure now
+# consider alpha=0.01 and 0.001
+
+# first, look at s2a=1, s2x=0
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h01_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="01") 
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h01_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims2 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="01")
+
+# now, s2a=0, s2x=1
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h10_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims3 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="10")
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h10_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims4 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="10")
+
+# now, s2a=1, s2x=1
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h11_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims5 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="11")
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h11_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims6 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="11")
+
+# now, s2a=0, s2x=0
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h00_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims7 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="00")
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h00_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims8 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="00")
+
+allTy <- rbind(nullSims,nullSims2,nullSims3,nullSims4,nullSims5,nullSims6,nullSims7,nullSims8)
+allTy$model[allTy$model=="auto"] <- "MONSTER"
+allTy$model[allTy$model=="both"] <- "KEATS-O"
+allTy$model[allTy$model=="x"] <- "KEATS-O X only"
+allTy$model[allTy$model=="unrel"] <- "SKATO"
+
+pow <- allTy %>%
+  group_by(chr,s2xa,model)
+data.frame(summarize(pow,n())) # 100K for each configuration
+
+# want histograms, one file of autosomal SNPs
+# facet_wrap by sig2xa
+
+# one file of x chr SNPs
+# facet_wrap by sig2xa
+
+tyIerrSm <- pow %>%
+  filter(chr=="X") %>%
+  filter(s2xa=="11")
+
+pdf("typeIErr_8pedFem_001_50vars_pvalueHist.pdf")
+ggplot(tyIerrSm,aes(x=pvalue)) + geom_histogram(binwidth=0.05) + 
+  theme_bw() + facet_wrap(~model,scales="free_y") +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  ylab("Frequency") + theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  xlab("P-Value, Testing X Chr SNP, 50 Variants") + 
+  ggtitle(expression(paste("P-Values for Null Sims, ", sigma[X]^2, "=1, ",sigma[A]^2,"=1")))
+dev.off()
+
+tyIerrSm <- pow %>%
+  filter(chr=="Autosomal") %>%
+  filter(s2xa=="11")
+
+pdf("typeIErr_8pedFem_001_autoSNP_50vars_pvalueHist.pdf")
+ggplot(tyIerrSm,aes(x=pvalue)) + geom_histogram(binwidth=0.05) + 
+  theme_bw() + facet_wrap(~model,scales="free_y") +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  ylab("Frequency") + theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  xlab("P-Value, Testing Autosomal SNP, 50 Variants") + 
+  ggtitle(expression(paste("P-Values for Null Sims, ", sigma[X]^2, "=1, ",sigma[A]^2,"=1")))
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 30. 
+
+library(dplyr); library(readr)
+library(tidyr); library(ggplot2)
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+
+# compare keats-o with monster and skato, also keats-o x only
+# make table with auto vs x - only considering the 8pedFem pedigree structure now
+# consider alpha=0.01 and 0.001
+
+# first, look at s2a=1, s2x=0
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h01_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="01") 
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h01_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims2 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="01")
+
+# now, s2a=0, s2x=1
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h10_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims3 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="10")
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h10_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims4 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="10")
+
+# now, s2a=1, s2x=1
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h11_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims5 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="11")
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h11_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims6 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="11")
+
+# now, s2a=0, s2x=0
+
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/sim_h00_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims7 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="X") %>%
+  mutate(s2xa="00")
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/sim_h00_v50_allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims8 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(chr="Autosomal") %>%
+  mutate(s2xa="00")
+
+allTy <- rbind(nullSims,nullSims2,nullSims3,nullSims4,nullSims5,nullSims6,nullSims7,nullSims8)
+allTy$model[allTy$model=="auto"] <- "MONSTER"
+allTy$model[allTy$model=="both"] <- "KEATS-O"
+allTy$model[allTy$model=="x"] <- "KEATS-O X only"
+allTy$model[allTy$model=="unrel"] <- "SKATO"
+
+pow <- allTy %>%
+  group_by(chr,s2xa,model)
+data.frame(summarize(pow,n())) # 100K for each configuration
+
+alpha <- c(0.05,0.01,0.001)
+plo <- matrix(NA,nrow=32,ncol=length(alpha))
+
+for(i in 1:length(alpha)){
+  s <- summarize(pow,sum(pvalue<alpha[i])/n())
+  plo[,i] <- data.frame(s)[,4]
+}
+plo <- cbind(s[,1:3],plo)
+n <- 100000
+se.0 <- 1.96*sqrt(alpha[1]*(1-alpha[1])/n)
+se.1 <- 1.96*sqrt(alpha[2]*(1-alpha[2])/n)
+se.2 <- 1.96*sqrt(alpha[3]*(1-alpha[3])/n)
+
+cbind(plo,inci.0=plo[,4]+se.0>alpha[1]&plo[,4]-se.0<alpha[1],
+      inci.1=plo[,5]+se.1>alpha[2]&plo[,5]-se.1<alpha[2],
+      inci.2=plo[,6]+se.2>alpha[3]&plo[,6]-se.2<alpha[3])
+
+colnames(plo)[4:6] <- paste("alpha",alpha,sep="_")
+
+# alpha=0.05
+totex <- plo %>% 
+  mutate(alpha_0.01=NULL) %>%
+  mutate(alpha_0.001=NULL) %>%
+  spread(model,alpha_0.05)
+
+# make this into latex table
+library(xtable)
+x <- xtable(totex,digits=3)
+print(x,include.rownames=FALSE)
+
+# alpha=0.01
+totex <- plo %>% 
+  mutate(alpha_0.05=NULL) %>%
+  mutate(alpha_0.001=NULL) %>%
+  spread(model,alpha_0.01)
+x <- xtable(totex,digits=3)
+print(x,include.rownames=FALSE)
+
+# alpha=0.001
+totex <- plo %>% 
+  mutate(alpha_0.05=NULL) %>%
+  mutate(alpha_0.01=NULL) %>%
+  spread(model,alpha_0.001)
+x <- xtable(totex,digits=4)
+print(x,include.rownames=FALSE)
+
+# make graphs of these results, too
+tyIerrSm <- plo[,c(1:3,6)]
+tyIerrSm <- tyIerrSm[tyIerrSm$chr=="X",]
+se <- 1.96*sqrt(0.001*(1-0.001)/100000)
+tyIerrSm$lower <- tyIerrSm$alpha_0.001-se
+tyIerrSm$upper <- tyIerrSm$alpha_0.001+se
+tyIerrSm$sigma_x <- substr(tyIerrSm$s2xa,start=1,stop=1)  
+tyIerrSm$sigma_a <- substr(tyIerrSm$s2xa,start=2,stop=nchar(tyIerrSm$s2xa))
+
+plot_labeller <- function(variable,value){
+  labels <- c('0'='0','1'='1')
+  if (variable=='sigma_x') {
+    v1 <- bquote(sigma[X]^2~"="~.(labels[value[1]]))
+    v2 <- bquote(sigma[X]^2~"="~.(labels[value[2]]))
+    return(c(v1,v2))
+  } else {
+    v1 <- bquote(sigma[A]^2~"="~.(labels[value[1]]))
+    v2 <- bquote(sigma[A]^2~"="~.(labels[value[2]]))
+    return(c(v1,v2))
+  }
+}
+pdf("typeIErr_8pedFem_001_50vars.pdf")
+ggplot(tyIerrSm,aes(x=model,y=alpha_0.001)) +geom_point()+ geom_pointrange(aes(ymin=lower,ymax=upper))+
+  theme_bw() + geom_hline(aes(yintercept=0.001,color="gray"))+
+  facet_grid(sigma_x~sigma_a,labeller=plot_labeller) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  ylab("Type I Error Rate") + theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  xlab("Model, Testing X Chr SNP, 50 Variants") + ggtitle(expression(paste("Type I Error Rate, ", alpha, "=0.001")))
+dev.off()
+
+tyIerrSm <- plo[,c(1:3,6)]
+tyIerrSm <- tyIerrSm[tyIerrSm$chr=="Autosomal",]
+se <- 1.96*sqrt(0.001*(1-0.001)/100000)
+tyIerrSm$lower <- tyIerrSm$alpha_0.001-se
+tyIerrSm$upper <- tyIerrSm$alpha_0.001+se
+tyIerrSm$sigma_x <- substr(tyIerrSm$s2xa,start=1,stop=1)  
+tyIerrSm$sigma_a <- substr(tyIerrSm$s2xa,start=2,stop=nchar(tyIerrSm$s2xa))
+
+pdf("typeIErr_8pedFem_001_autoSNP_50vars.pdf")
+ggplot(tyIerrSm,aes(x=model,y=alpha_0.001)) +geom_point()+ geom_pointrange(aes(ymin=lower,ymax=upper))+
+  theme_bw() + geom_hline(aes(yintercept=0.001,color="gray"))+
+  facet_grid(sigma_x~sigma_a,labeller=plot_labeller) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  ylab("Type I Error Rate") + theme(axis.text.x=element_text(angle=45,hjust=1)) +
+  xlab("Model, Testing Autosomal SNP, 50 Variants") + ggtitle(expression(paste("Type I Error Rate, ", alpha, "=0.001")))
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 31. Group SNPs into genes, genome-wide
+# use freeze1 annotation files!
+
+# ran in batch, by chr:
+# cd /projects/users/caitlin/keats_x/keats_optimal/olga_rbc_assoc
+# qsub -q olga.q -t 1-23 -N geneList batch_make_geneList.sh
+# which calls make_geneList.R
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+library(GWASTools)
+library(ggplot2)
+
+# read in all gene lists to make plots of some summaries
+geneAnnot <- NULL
+geneList <- NULL
+for(i in 1:23){
+  dat <- read.table(paste0("olga_rbc_assoc/geneList_chr",i,".txt"),header=T,as.is=T)
+  geneAnnot <- rbind(geneAnnot,dat)
+  
+  dat <- getobj(paste0("olga_rbc_assoc/snpIDs_genes_chr",i,".RData"))
+  geneList <- c(geneList,dat)
+}
+dim(geneAnnot) # 16500 2
+length(geneList) # 16500
+
+t <- sapply(geneList,length)
+
+library(ggplot2)
+pdf("olga_rbc_assoc/rbc_assoc_geneList_hist_16500.pdf")
+ggplot(data.frame(t),aes(t)) + geom_histogram(binwidth=10) + theme_bw() + 
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  ylab("Frequency") + xlab("SNPs per Gene") + 
+  ggtitle("Number of SNPs per 16,500 Genes")
+dev.off()
+
+
+# make a plot of genes by chromosome
+pdf("olga_rbc_assoc/rbc_assoc_geneList_histByChr_16500.pdf")
+ggplot(geneAnnot,aes(chromosome)) + geom_histogram(binwidth=1) + theme_bw() + 
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(breaks=seq(1,23,1)) +
+  ylab("Frequency") + xlab("Genes per Chromosome") + 
+  ggtitle("Number of Genes per Chromosome")
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 32. Run KEATSO on HCHS/SOL genome-wide
+
+# use gds files per chromosome that have all genotyped SNPs that pass quality filter, with sporadic missingness imputed
+# by shapeit
+# /projects/geneva/gcc-fs2/OLGA/genotype/freeze1/gds/observed/SOL_obs_from_imp_chr-10.gds 
+
+# need to write the script to loop through by chromosome
+# then through genes that are on a particular chromosome
+
+# called:
+# cd /projects/users/caitlin/keats_x/keats_optimal/olga_rbc_assoc/
+# qsub -q olga.q N rbcKeatsX batch_geneList_rbc_genomeWide_assoc.sh
+
+# want results for:
+# plot pvalue by genomic position - manh plot
+# look at rho values for each gene
+# look at nvar for each gene, also sample size
+# compare with rho=0, rho=1 vs keatso pvalues
+# compare with GWAS p-values?
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+library(GWASTools); library(QCpipeline)
+library(OLGApipeline); library(OLGAanalysis)
+library(MASS)
+library(SNPRelate)
+library(survey)
+library(kinship)
+library(pbivnorm)
+library(SKAT)
+library(dplyr); library(tidyr)
+library(ggplot2); library(readr)
+library(GenomicFeatures); library(QCannot)
+library(biomaRt)
+
+geneAnnot <- NULL
+for(i in 1:23){
+  tmp <- read.table(paste0("olga_rbc_assoc/geneList_chr",i,".txt"),header=T,as.is=T)
+  geneAnnot <- rbind(geneAnnot,tmp)
+}
+geneAnnot$p.value <- NA
+geneAnnot$nvar <- NA
+geneAnnot$nsamp <- NA
+geneAnnot$optimal.rho <- NA
+
+chrs <- 1:23
+for(i in chrs){
+  fn <- paste0("olga_rbc_assoc/rbc_snpIDs_genomewide_keatsoResults_chr",i,".RData")
+  dat <- getobj(fn)
+  # 2nd value of each list item is the gene p-value
+  # $nvar is the number of vars used
+  # $nsamp is number of samples used
+  # do another loop through the list of genes
+  for(j in 1:length(dat)){
+    ind <- which(geneAnnot$geneID==dat[[j]]$gene)
+    geneAnnot$p.value[ind] <- dat[[j]][[2]]
+    geneAnnot$nvar[ind] <- dat[[j]]$nvar
+    geneAnnot$nsamp[ind] <- dat[[j]]$nsamp
+    opt <- dat[[j]][[1]]
+    geneAnnot$optimal.rho[ind] <- opt$rho[which.min(opt$pvalue)]
+  }
+}
+
+dim(geneAnnot) # 16498 6
+sum(is.na(geneAnnot$p.value))
+
+# make a manh plot of the p-values
+png("olga_rbc_assoc/genomeWide_keatso_manh.png",width=600)
+manhattanPlot(geneAnnot$p.value,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/16500)
+dev.off()
+
+# plot the nvar by p.value
+pdf("olga_rbc_assoc/genomeWide_pvalue_byNvar.pdf")
+ggplot(geneAnnot,aes(x=-log10(p.value),y=nvar))+geom_point()+theme_bw()
+dev.off() # no trend, many of the sig pvalues are on the low end of the nvar
+
+pdf("olga_rbc_assoc/genomeWide_optimalRho_hist.pdf")
+ggplot(geneAnnot,aes(x=optimal.rho))+geom_histogram(binwidth=0.1)+theme_bw()+
+  xlab(expression(paste("Optimal ",rho))) + scale_x_continuous(breaks=seq(0,1,0.1)) 
+dev.off() 
+
+write.table(geneAnnot,file="olga_rbc_assoc/geneList_genomewide_results.txt",row.names=FALSE,quote=FALSE)
+
+# get the significant gene names
+0.05/16500 # 3.03e-06
+geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,]
+#       geneID chromosome      p.value nvar nsamp optimal.rho
+# 9064    3043         11 5.527472e-12    4 12488         0.2
+# 12274  55692         16 1.045970e-16   39 12489         0.0 
+# 12275  83986         16 2.041289e-13   13 12489         0.0
+# 12279   9727         16 1.575372e-08   43 12489         0.0
+# 16494   2539         23 3.582132e-16    5 12488         0.0
+# 16497   2157         23 1.324010e-07   15 12488         0.0
+
+library(xtable)
+print(xtable(geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,],digits=c(0,0,0,0,0,0,1)),include.rownames=FALSE)
+
+# add mtxt for the 6 most sig p-values
+png("olga_rbc_assoc/genomeWide_keatso_manh_annotated.png",width=600)
+manhattanPlot(geneAnnot$p.value,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/16500)
+N <- nrow(geneAnnot)
+chromstart <- which(c(1, diff(geneAnnot$chromosome)) == 1)
+chromend <- c(chromstart[-1], N)
+geneAnnot$x <- (1:N) + geneAnnot$chromosome * (chromend[1]/6)
+hits <- geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,]
+text(x=hits$x,y=-log10(hits$p.value)-0.6,labels=c("HBB","LUC7L","ITFG3","RAB11FIP3","G6PD","F8"))
+dev.off()
+
+# 3043: HBB protein-coding gene
+#The alpha (HBA) and beta (HBB) loci determine the structure of the 2 types of polypeptide chains in adult hemoglobin, Hb A. 
+#The normal adult hemoglobin tetramer consists of two alpha chains and two beta chains. Mutant beta globin causes sickle cell anemia.
+#Absence of beta chain causes beta-zero-thalassemia. Reduced amounts of detectable beta globin causes beta-plus-thalassemia. 
+#The order of the genes in the beta-globin cluster is 5'-epsilon -- gamma-G -- gamma-A -- delta -- beta--3'. 
+#[provided by RefSeq, Jul 2008]
+
+# 55692: LUC7L protein-coding gene
+#The LUC7L gene may represent a mammalian heterochromatic gene, encoding a putative RNA-binding protein similar to the 
+#yeast Luc7p subunit of the U1 snRNP splicing complex that is normally required for 5-prime splice site selection 
+#(Tufarelli et al., 2001 [PubMed 11170747]).[supplied by OMIM, Mar 2008]
+
+# 83986: ITFG3 protein-coding gene -- * included in the previously published associations
+
+# 9727: RAB11FIP3 protein-coding gene
+# Proteins of the large Rab GTPase family (see RAB1A; MIM 179508) have regulatory roles in the formation, targeting, 
+#and fusion of intracellular transport vesicles. RAB11FIP3 is one of many proteins that interact with and regulate Rab GTPases 
+#(Hales et al., 2001 [PubMed 11495908]).[supplied by OMIM, Mar 2008]
+
+# 2539: G6PD -- * included in the previously published associations
+
+# 2157: F8 protein-coding gene
+# This gene encodes coagulation factor VIII, which participates in the intrinsic pathway of blood coagulation; 
+#factor VIII is a cofactor for factor IXa which, in the presence of Ca+2 and phospholipids, converts factor X to the 
+#activated form Xa. This gene produces two alternatively spliced transcripts. Transcript variant 1 encodes a large glycoprotein, 
+#isoform a, which circulates in plasma and associates with von Willebrand factor in a noncovalent complex. 
+#This protein undergoes multiple cleavage events. Transcript variant 2 encodes a putative small protein, isoform b, 
+#which consists primarily of the phospholipid binding domain of factor VIIIc. 
+#This binding domain is essential for coagulant activity. Defects in this gene results in hemophilia A, a common recessive 
+#X-linked coagulation disorder. [provided by RefSeq, Jul 2008]
+# * mentioned in COGENT paper
+
+mart <- useMart("ensembl", dataset="hsapiens_gene_ensembl")
+info <- getGene(geneList$Mapped_gene,type="hgnc_symbol",mart=mart)
+hits <- geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,]
+info <- getBM(attributes=c('hgnc_symbol','entrezgene','chromosome_name','start_position','end_position'),
+      filters='entrezgene',values=hits$geneID,mart=mart)
+
+hits <- merge(hits,info,by.x="geneID",by.y="entrezgene")
+# all the chr 16 hits are pretty close to eachother, the x chr hits are also neighboring
+
+library(xtable)
+print(xtable(hits[,c(7,8,9,4,3,6)],digits=c(0,0,0,0,0,0,1)),include.rownames=FALSE)
+
+# read in single snp association p-values for these regions
+# record the most sig in the region, also the bonf corrected sig p-value, based on #vars in gene region
+# want chrs 11, 16, 23
+# need SNPs for each gene region, too
+geneList <- NULL
+for(i in c(11,16,23)){
+  dat <- getobj(paste0("olga_rbc_assoc/snpIDs_genes_chr",i,".RData"))
+  geneList <- c(geneList,dat)
+}
+geneList <- lapply(geneList,function(x){unique(x)})
+
+assc11 <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr11.RData")
+assc16 <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr16.RData")
+assc23 <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr23.RData")
+
+hits$sigP <- NA
+hits$sigP.bonf <- NA
+for(i in 1:nrow(hits)){
+  snps <- geneList[as.character(hits$geneID[i])]  
+  if(hits$chromosome[i]==11){
+    pvals <- assc11$pval[is.element(assc11$snpID,unlist(snps))]
+  }
+  if(hits$chromosome[i]==16){
+    pvals <- assc16$pval[is.element(assc16$snpID,unlist(snps))]
+  }
+  if(hits$chromosome[i]==23){
+    pvals <- assc23$pval[is.element(assc23$snpID,unlist(snps))]
+  }
+  stopifnot(length(pvals)==length(unlist(snps)))
+  hits$sigP[i] <- min(pvals,na.rm=T)
+  hits$sigP.bonf[i] <- min(pvals,na.rm=T)*length(pvals)
+  rm(snps)
+}
+
+#print(xtable(hits[,c(7,8,9,4,3,6,11,12)],digits=c(0,0,0,0,0,0,1)),include.rownames=FALSE)
+
+rm(list=ls())
+
+
+#####
+# 33. Power results, keatso, chrX and auto for different mixes of +/- for 8ped
+
+# a 2x3 plot, auto vs x on the rows, cols corresponding to props of:
+# 5/35/60, 15/25/60, 20/20/60
+
+# need to put null and true sim results together,
+# indicators for null/true, x/auto and proportion, as well as model
+
+library(readr); library(dplyr)
+library(tidyr); library(ggplot2)
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+
+readPow <- function(fn,n=10000,prop,type,chr){
+  dat <- read_delim(fn,delim=" ",col_names=FALSE,skip=1)
+  colnames(dat) <- c("qstat","pvalue","rho","model")
+  dat <- dat[dat$model!="model",]
+  
+  datNew <- dat %>%
+    mutate(qstat=as.numeric(qstat)) %>%
+    mutate(pvalue=as.numeric(pvalue)) %>%
+    mutate(rho=as.numeric(rho)) %>%
+    #mutate(iter=rep(1:n,each=12*4)) %>%
+    mutate(finalpval=rep(c(rep(FALSE,11),TRUE),4*n)) %>%
+    filter(finalpval==TRUE) %>%
+    mutate(prop=prop) %>%
+    mutate(type=type) %>%
+    mutate(chr=chr)
+  return(datNew)
+}
+
+chrX_8ped_ar1_15256 <- readPow("powerSims_8ped_chrX_ld05_ar1/sim15256_c02_allOptRes.txt",prop="15/25/60",
+                               type=TRUE,chr="X")
+chrX_8ped_ar1_5356 <- readPow("powerSims_8ped_chrX_ld05_ar1/sim5356_c02_allOptRes.txt",prop="5/35/60",
+                              type=TRUE,chr="X")
+chrX_8ped_ar1_226 <- readPow("powerSims_8ped_chrX_ld05_ar1/sim226_c02_allOptRes.txt",prop="20/20/60",
+                             type=TRUE,chr="X",n=9892)
+chr9_8ped_ar1_15256 <- readPow("powerSims_8ped_chr9_ld05_ar1/sim15256_c02_allOptRes.txt",prop="15/25/60",
+                               type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_5356 <- readPow("powerSims_8ped_chr9_ld05_ar1/sim5356_c02_allOptRes.txt",prop="5/35/60",
+                              type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_226 <- readPow("powerSims_8ped_chr9_ld05_ar1/sim226_c02_allOptRes.txt",prop="20/20/60",
+                             type=TRUE,chr="Autosomal")
+
+allPow <- rbind(chrX_8ped_ar1_15256,chrX_8ped_ar1_5356,chrX_8ped_ar1_226,
+                chr9_8ped_ar1_15256,chr9_8ped_ar1_5356,chr9_8ped_ar1_226)
+
+# now read in null simulations
+dat <- read_delim("nullSims_8ped_chrX_ld05_ar1/allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="5/35/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="X") 
+
+nullSimsa <- nullSims
+nullSimsa$prop <- "15/25/60"
+nullSimsb <- nullSimsa
+nullSimsb$prop <- "20/20/60"
+
+dat <- read_delim("nullSims_8ped_chr9_ld05_ar1/allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims2 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="5/35/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="Autosomal") 
+
+nullSims3 <- nullSims2
+nullSims3$prop <- "15/25/60"
+nullSims4 <- nullSims2
+nullSims4$prop <- "20/20/60"
+
+allRes <- rbind(allPow,nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4)
+
+pow <- allRes %>%
+  group_by(model,prop,chr,type)
+data.frame(summarize(pow,n())) # 10K for each model at each prop; 200K for some null iterations
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+plo <- matrix(NA,nrow=48,ncol=length(alpha))
+#colnames(plo) <- paste0("alpha.",alpha)
+for(i in 1:length(alpha)){
+  s <- summarize(pow,sum(pvalue<alpha[i])/n())
+  plo[,i] <- data.frame(s)[,5]
+}
+
+plo <- data.frame(plo)
+plo <- cbind(data.frame(s[,1:4]),plo)
+plo$model[plo$model=="auto"] <- "MONSTER"
+plo$model[plo$model=="both"] <- "KEATS-O"
+plo$model[plo$model=="x"] <- "KEATS-O X only"
+plo$model[plo$model=="unrel"] <- "SKATO"
+
+allres <- plo %>%
+  gather(alpha,rate,-c(model,type,prop,chr))
+
+allres$type[allres$type==TRUE] <- "power"
+allres$type[allres$type==FALSE] <- "null"
+finalR <- allres %>%
+  spread(type,rate) 
+finalR$prop <- ordered(finalR$prop,levels=c("5/35/60","15/25/60","20/20/60"))
+
+# plot these results now
+pdf("power_8ped_trunc.pdf",width=14)
+ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+dev.off()
+
+# make histograms of the rho values at the same configurations
+powTr <- pow[pow$type==TRUE&pow$model=="both",]
+powTr$prop <- ordered(powTr$prop,levels=c("5/35/60","15/25/60","20/20/60"))
+pdf("rho_8ped_keatso_hist.pdf")
+ggplot(powTr,aes(x=rho)) + geom_histogram(binwidth=0.1) + facet_grid(chr~prop,scales="free_y") + xlab(expression(paste(rho))) +
+  theme_bw() +  ylab("")
+dev.off()
+
+powTr <- pow[pow$type==TRUE&pow$model=="auto",]
+powTr$prop <- ordered(powTr$prop,levels=c("5/35/60","15/25/60","20/20/60"))
+pdf("rho_8ped_monster_hist.pdf")
+ggplot(powTr,aes(x=rho)) + geom_histogram(binwidth=0.1) + facet_grid(chr~prop,scales="free_y") + xlab(expression(paste(rho))) +
+  ylab("") + theme_bw()
+dev.off()
+
+rm(list=ls())
+
+readPow <- function(fn,n=10000,prop,type,chr){
+  dat <- read_delim(fn,delim=" ",col_names=FALSE,skip=1)
+  colnames(dat) <- c("qstat","pvalue","rho","model")
+  dat <- dat[dat$model!="model",]
+  
+  datNew <- dat %>%
+    mutate(qstat=as.numeric(qstat)) %>%
+    mutate(pvalue=as.numeric(pvalue)) %>%
+    mutate(rho=as.numeric(rho)) %>%
+    #mutate(iter=rep(1:n,each=12*4)) %>%
+    mutate(finalpval=rep(c(rep(FALSE,11),TRUE),4*n)) %>%
+    filter(finalpval==TRUE) %>%
+    mutate(prop=prop) %>%
+    mutate(type=type) %>%
+    mutate(chr=chr)
+  return(datNew)
+}
+
+chrX_8ped_ar1_15256 <- readPow("powerSims_8ped_chrX_ld05_ar1/sim406_c02_allOptRes.txt",prop="40/0/60",
+                               type=TRUE,chr="X")
+chrX_8ped_ar1_5356 <- readPow("powerSims_8ped_chrX_ld05_ar1/sim604_c02_allOptRes.txt",prop="60/0/40",
+                              type=TRUE,chr="X")
+chrX_8ped_ar1_226 <- readPow("powerSims_8ped_chrX_ld05_ar1/sim208_c02_allOptRes.txt",prop="20/0/80",
+                             type=TRUE,chr="X")
+chr9_8ped_ar1_15256 <- readPow("powerSims_8ped_chr9_ld05_ar1/sim406_c02_allOptRes.txt",prop="40/0/60",
+                               type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_5356 <- readPow("powerSims_8ped_chr9_ld05_ar1/sim604_c02_allOptRes.txt",prop="60/0/40",
+                              type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_226 <- readPow("powerSims_8ped_chr9_ld05_ar1/sim208_c02_allOptRes.txt",prop="20/0/80",
+                             type=TRUE,chr="Autosomal")
+
+allPow <- rbind(chrX_8ped_ar1_15256,chrX_8ped_ar1_5356,chrX_8ped_ar1_226,
+                chr9_8ped_ar1_15256,chr9_8ped_ar1_5356,chr9_8ped_ar1_226)
+
+# now read in null simulations
+dat <- read_delim("nullSims_8ped_chrX_ld05_ar1/allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="X") 
+
+nullSimsa <- nullSims
+nullSimsa$prop <- "60/0/40"
+nullSimsb <- nullSimsa
+nullSimsb$prop <- "20/0/80"
+
+dat <- read_delim("nullSims_8ped_chr9_ld05_ar1/allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims2 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="Autosomal") 
+
+nullSims3 <- nullSims2
+nullSims3$prop <- "60/0/40"
+nullSims4 <- nullSims2
+nullSims4$prop <- "20/0/80"
+
+allRes <- rbind(allPow,nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4)
+
+pow <- allRes %>%
+  group_by(model,prop,chr,type)
+data.frame(summarize(pow,n())) # 10K for each model at each prop; 200K for some null iterations
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+plo <- matrix(NA,nrow=48,ncol=length(alpha))
+#colnames(plo) <- paste0("alpha.",alpha)
+for(i in 1:length(alpha)){
+  s <- summarize(pow,sum(pvalue<alpha[i])/n())
+  plo[,i] <- data.frame(s)[,5]
+}
+
+plo <- data.frame(plo)
+plo <- cbind(data.frame(s[,1:4]),plo)
+plo$model[plo$model=="auto"] <- "MONSTER"
+plo$model[plo$model=="both"] <- "KEATS-O"
+plo$model[plo$model=="x"] <- "KEATS-O X only"
+plo$model[plo$model=="unrel"] <- "SKATO"
+
+allres <- plo %>%
+  gather(alpha,rate,-c(model,type,prop,chr))
+
+allres$type[allres$type==TRUE] <- "power"
+allres$type[allres$type==FALSE] <- "null"
+finalR <- allres %>%
+  spread(type,rate) 
+finalR$prop <- ordered(finalR$prop,levels=c("20/0/80","40/0/60","60/0/40"))
+
+# plot these results now
+pdf("power_8ped_btProps_trunc.pdf",width=14)
+ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+dev.off()
+
+# make histograms of the rho values at the same configurations
+powTr <- pow[pow$type==TRUE&pow$model=="both",]
+powTr$prop <- ordered(powTr$prop,levels=c("20/0/80","40/0/60","60/0/40"))
+pdf("rho_8ped_keatso_btProps_hist.pdf")
+ggplot(powTr,aes(x=rho)) + geom_histogram(binwidth=0.1) + facet_grid(chr~prop,scales="free_y") + xlab(expression(paste(rho))) +
+  ylab("") + theme_bw()
+dev.off()
+
+powTr <- pow[pow$type==TRUE&pow$model=="auto",]
+powTr$prop <- ordered(powTr$prop,levels=c("20/0/80","40/0/60","60/0/40"))
+pdf("rho_8ped_monster_btProps_hist.pdf")
+ggplot(powTr,aes(x=rho)) + geom_histogram(binwidth=0.1) + facet_grid(chr~prop,scales="free_y") + xlab(expression(paste(rho))) +
+  ylab("") + theme_bw()
+dev.off()
+
+rm(list=ls())
+
+
+#####
+
+
+library(readr); library(dplyr)
+library(tidyr); library(ggplot2)
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+
+
+readPow <- function(fn,n=10000,prop,type,chr){
+  dat <- read_delim(fn,delim=" ",col_names=FALSE,skip=1)
+  colnames(dat) <- c("qstat","pvalue","rho","model")
+  dat <- dat[dat$model!="model",]
+  
+  datNew <- dat %>%
+    mutate(qstat=as.numeric(qstat)) %>%
+    mutate(pvalue=as.numeric(pvalue)) %>%
+    mutate(rho=as.numeric(rho)) %>%
+    #mutate(iter=rep(1:n,each=12*4)) %>%
+    mutate(finalpval=rep(c(rep(FALSE,11),TRUE),4*n)) %>%
+    filter(finalpval==TRUE) %>%
+    mutate(prop=prop) %>%
+    mutate(type=type) %>%
+    mutate(chr=chr)
+  return(datNew)
+}
+
+chrX_8ped_ar1_15256 <- readPow("powerSims_unrel_chrX_ld05_ar1/sim406_c02_allOptRes.txt",prop="40/0/60",
+                               type=TRUE,chr="X")
+chrX_8ped_ar1_5356 <- readPow("powerSims_unrel_chrX_ld05_ar1/sim604_c02_allOptRes.txt",prop="60/0/40",
+                              type=TRUE,chr="X")
+chrX_8ped_ar1_226 <- readPow("powerSims_unrel_chrX_ld05_ar1/sim208_c02_allOptRes.txt",prop="20/0/80",
+                             type=TRUE,chr="X")
+chr9_8ped_ar1_15256 <- readPow("powerSims_unrel_chr9_ld05_ar1/sim406_c02_allOptRes.txt",prop="40/0/60",
+                               type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_5356 <- readPow("powerSims_unrel_chr9_ld05_ar1/sim604_c02_allOptRes.txt",prop="60/0/40",
+                              type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_226 <- readPow("powerSims_unrel_chr9_ld05_ar1/sim208_c02_allOptRes.txt",prop="20/0/80",
+                             type=TRUE,chr="Autosomal")
+
+allPow <- rbind(chrX_8ped_ar1_15256,chrX_8ped_ar1_5356,chrX_8ped_ar1_226,
+                chr9_8ped_ar1_15256,chr9_8ped_ar1_5356,chr9_8ped_ar1_226)
+
+# now read in null simulations
+dat <- read_delim("nullSims_unrel_chrX_ld05_ar1/allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="X") 
+
+nullSimsa <- nullSims
+nullSimsa$prop <- "60/0/40"
+nullSimsb <- nullSimsa
+nullSimsb$prop <- "20/0/80"
+
+dat <- read_delim("nullSims_unrel_chr9_ld05_ar1/allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims2 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="Autosomal") 
+
+nullSims3 <- nullSims2
+nullSims3$prop <- "60/0/40"
+nullSims4 <- nullSims2
+nullSims4$prop <- "20/0/80"
+
+allRes <- rbind(allPow,nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4)
+
+pow <- allRes %>%
+  group_by(model,prop,chr,type)
+data.frame(summarize(pow,n())) # 10K for each model at each prop; 200K for some null iterations
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+plo <- matrix(NA,nrow=48,ncol=length(alpha))
+#colnames(plo) <- paste0("alpha.",alpha)
+for(i in 1:length(alpha)){
+  s <- summarize(pow,sum(pvalue<alpha[i])/n())
+  plo[,i] <- data.frame(s)[,5]
+}
+
+plo <- data.frame(plo)
+plo <- cbind(data.frame(s[,1:4]),plo)
+plo$model[plo$model=="auto"] <- "MONSTER"
+plo$model[plo$model=="both"] <- "KEATS-O"
+plo$model[plo$model=="x"] <- "KEATS-O X only"
+plo$model[plo$model=="unrel"] <- "SKATO"
+
+allres <- plo %>%
+  gather(alpha,rate,-c(model,type,prop,chr))
+
+allres$type[allres$type==TRUE] <- "power"
+allres$type[allres$type==FALSE] <- "null"
+finalR <- allres %>%
+  spread(type,rate) 
+finalR$prop <- ordered(finalR$prop,levels=c("20/0/80","40/0/60","60/0/40"))
+
+# plot these results now
+pdf("power_unrel_btProps_trunc.pdf",width=14)
+ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+dev.off()
+
+# make histograms of the rho values at the same configurations
+powTr <- pow[pow$type==TRUE&pow$model=="both",]
+powTr$prop <- ordered(powTr$prop,levels=c("20/0/80","40/0/60","60/0/40"))
+pdf("rho_unrel_keatso_btProps_hist.pdf")
+ggplot(powTr,aes(x=rho)) + geom_histogram(binwidth=0.1) + facet_grid(chr~prop,scales="free_y") + xlab(expression(paste(rho))) +
+  ylab("") + theme_bw()
+dev.off()
+
+powTr <- pow[pow$type==TRUE&pow$model=="auto",]
+powTr$prop <- ordered(powTr$prop,levels=c("20/0/80","40/0/60","60/0/40"))
+pdf("rho_unrel_monster_btProps_hist.pdf")
+ggplot(powTr,aes(x=rho)) + geom_histogram(binwidth=0.1) + facet_grid(chr~prop,scales="free_y") + xlab(expression(paste(rho))) +
+  ylab("") + theme_bw()
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 34. Hist of optimal rho values, null sims 8pedFem
+
+library(readr); library(dplyr)
+library(tidyr); library(ggplot2)
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+
+readPow <- function(fn,n=10000,prop,type,chr){
+  dat <- read_delim(fn,delim=" ",col_names=FALSE,skip=1)
+  colnames(dat) <- c("qstat","pvalue","rho","model")
+  dat <- dat[dat$model!="model",]
+  
+  datNew <- dat %>%
+    mutate(qstat=as.numeric(qstat)) %>%
+    mutate(pvalue=as.numeric(pvalue)) %>%
+    mutate(rho=as.numeric(rho)) %>%
+    #mutate(iter=rep(1:n,each=12*4)) %>%
+    mutate(finalpval=rep(c(rep(FALSE,11),TRUE),4*n)) %>%
+    filter(finalpval==TRUE) %>%
+    mutate(prop=prop) %>%
+    mutate(type=type) %>%
+    mutate(chr=chr)
+  return(datNew)
+}
+
+# now read in null simulations
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="X") 
+
+nullSimsa <- nullSims
+nullSimsa$prop <- "60/0/40"
+nullSimsb <- nullSimsa
+nullSimsb$prop <- "20/0/80"
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/allOptRes.txt",delim=" ",skip=1,col_names=FALSE)
+colnames(dat) <- c("qstat","pvalue","rho","model")
+nullSims2 <- dat %>%
+  filter(!is.na(model)) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="Autosomal") 
+
+nullSims3 <- nullSims2
+nullSims3$prop <- "60/0/40"
+nullSims4 <- nullSims2
+nullSims4$prop <- "20/0/80"
+
+allRes <- rbind(nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4)
+
+pow <- allRes %>%
+  group_by(model,prop,chr,type)
+data.frame(summarize(pow,n())) # 10K for each model at each prop; 200K for some null iterations
+
+plo <- pow
+
+plo <- data.frame(plo)
+plo$model[plo$model=="auto"] <- "MONSTER"
+plo$model[plo$model=="both"] <- "KEATS-O"
+plo$model[plo$model=="x"] <- "KEATS-O X only"
+plo$model[plo$model=="unrel"] <- "SKATO"
+
+# want histogram of plo$rho, stratified by chr
+# only for model=KEATS-O
+sm <- plo[plo$model=="KEATS-O",]
+xres <- sm[sm$chr=="X",]
+autores <- sm[sm$chr=="Autosomal",]
+sm <- rbind(xres[1:100000,],autores[1:100000,])
+pdf("rho_8pedFem_nullSims_keatso.pdf",width=14)
+ggplot(sm,aes(x=rho)) +geom_histogram(binwidth=0.1) + theme_bw() + facet_grid(~chr) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text=element_text(size=16)) +
+  scale_x_continuous(limits=c(0,1)) + xlab(expression(rho)) +ylab("Frequency")
+dev.off()
+
+allres <- plo %>%
+  gather(alpha,rate,-c(model,type,prop,chr))
+
+allres$type[allres$type==TRUE] <- "power"
+allres$type[allres$type==FALSE] <- "null"
+finalR <- allres %>%
+  spread(type,rate) 
+finalR$prop <- ordered(finalR$prop,levels=c("20/0/80","40/0/60","60/0/40"))
+
+# plot these results now
+pdf("power_8pedFem_btProps_trunc.pdf",width=14)
+ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0.8,1)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+dev.off()
+
+rm(list=ls())
+
+
+#####
 
 
