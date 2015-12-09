@@ -36,8 +36,12 @@
 # 32. Run KEATSO on HCHS/SOL genome-wide
 # 33. Power results, keatso, chrX and auto for different mixes of +/- for 8ped
 # 34. Hist of optimal rho values, null sims 8pedFem
-
-
+# 35. KEATSO on HCHS/SOL genome-wide QQ plots
+# 36. KEATSO on HCHS/SOL genome-wide single test p-value comparisons
+# 37. Make a new HCHS/SOL gene list, NOT excluding SNPs with >5% MAF
+# 38. HCHS/SOL genome-wide using MONSTER, and SKAT on unrelateds
+# 39. KEATSO on HCHS/SOL genome-wide, NOT filtering out SNPs with >5% MAF
+# 40. KEATSO pvalues for genome-wide sig hits, compared to KEATS pvalues
 
 
 #####
@@ -5733,6 +5737,9 @@ for(i in 1:nrow(hits)){
 
 #print(xtable(hits[,c(7,8,9,4,3,6,11,12)],digits=c(0,0,0,0,0,0,1)),include.rownames=FALSE)
 
+## look up results for genes that were sig in the rare + common analysis
+geneAnnot[is.element(geneAnnot$geneID,c(4354,100132963)),]
+
 rm(list=ls())
 
 
@@ -6230,5 +6237,394 @@ rm(list=ls())
 
 
 #####
+# 35. KEATSO on HCHS/SOL genome-wide QQ plots
 
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+library(GWASTools); library(QCpipeline)
+library(OLGApipeline); library(OLGAanalysis)
+
+geneAnnot <- read.table("olga_rbc_assoc/geneList_genomewide_results.txt",header=T,as.is=T)
+
+dim(geneAnnot) # 16498 6
+sum(is.na(geneAnnot$p.value))
+
+# make a qq plot of the p-values
+png("olga_rbc_assoc/genomeWide_keatso_qq.png",width=600)
+qqPlot(geneAnnot$p.value)
+dev.off()
+
+# can't calculate lambda_GC, ie. genomic control inflation factor, as we don't have the test stats
+
+rm(list=ls())
+
+
+#####
+# 36. KEATSO on HCHS/SOL genome-wide single test p-value comparisons
+
+# get the gene-based p-values, compare with min p-values per region, corrected for num vars in that gene region
+# plot manh of the single test values, also a x-y plot with the corrected single test and the keatso values
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+library(GWASTools); library(QCpipeline)
+library(OLGApipeline); library(OLGAanalysis)
+
+geneAnnot <- read.table("olga_rbc_assoc/geneList_genomewide_results.txt",header=T,as.is=T)
+
+# read in all single test p-values and add to geneAnnot
+geneList <- NULL
+for(i in 1:23){
+  dat <- getobj(paste0("olga_rbc_assoc/snpIDs_genes_chr",i,".RData"))
+  dat <- lapply(dat,function(x){unique(x)})
+  assc <- getobj(paste0("../../olga_xchr_assoc/Assoc/assoc_316987_chr",i,".RData"))
+
+  pvals <- lapply(dat,function(x){min(assc$pval[is.element(assc$snpID,x)],na.rm=T)})
+  pres <- data.frame("singleTest.min.pval"=unlist(pvals))
+  pres$gene <- names(pvals)
+  
+  geneAnnot <- merge(geneAnnot,pres,by.x="geneID",by.y="gene",all.x=TRUE)
+}
+# need to merge all the 'singleTest.min.pval.x and .y columns into one
+for(i in 1:20){
+geneAnnot$singleTest.min.pval[!is.na(geneAnnot[,7])] <- geneAnnot[!is.na(geneAnnot[,7]),7]
+geneAnnot[,7] <- NULL
+}
+
+sum(is.na(geneAnnot$singleTest.min.pval)) # 0!
+geneAnnot$singleTest.corr.pval <- geneAnnot$singleTest.min.pval*geneAnnot$nvar
+geneAnnot$singleTest.corr.pval[geneAnnot$singleTest.corr.pval>1] <- 1
+
+# reorder geneAnnot
+tmp <- read.table("olga_rbc_assoc/geneList_genomewide_results.txt",header=T,as.is=T)
+tmp$ord <- 1:nrow(tmp)
+geneAnnot <- merge(geneAnnot,tmp[,c("geneID","ord")],by="geneID",all=TRUE)
+geneAnnot <- geneAnnot[geneAnnot$ord,]
+
+# save the new geneAnnot
+write.table(geneAnnot,file="olga_rbc_assoc/geneList_genomewide_results.txt",row.names=FALSE,quote=FALSE)
+
+# make manh plot of corr single test p-values
+png("olga_rbc_assoc/genomeWide_singleTestCorrPval_manh.png",width=600)
+manhattanPlot(geneAnnot$singleTest.corr.pval,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/16500)
+dev.off()
+
+# make both in same file
+png("olga_rbc_assoc/genomeWide_keatso_singleTestCorr_manh.png",width=600,height=500)
+par(mfrow=c(2,1))
+manhattanPlot(geneAnnot$p.value,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/16500,main="KEATS-O P-Value")
+manhattanPlot(geneAnnot$singleTest.corr.pval,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/16500,main="Single Test Corrected P-Value")
+dev.off()
+
+# make x vs y plot of pvalues; WOW! 
+png("olga_rbc_assoc/genomeWide_keatso_singleTestCorr_comparison.png",width=600,height=500)
+ggplot(geneAnnot,aes(x=singleTest.corr.pval,y=p.value)) + geom_point() +
+  theme_bw() + xlab("Single Test Corrected P-Value") + ylab("KEATS-O P-Value") +
+  geom_abline(intercept=0,slope=1)
+dev.off()
+
+# color them by optimal rho
+png("olga_rbc_assoc/genomeWide_keatso_singleTestCorr_comparison_colored.png",width=600,height=500)
+ggplot(geneAnnot,aes(x=singleTest.corr.pval,y=p.value)) + geom_point(aes(color=optimal.rho)) +
+  theme_bw() + xlab("Single Test Corrected P-Value") + ylab("KEATS-O P-Value") +
+  geom_abline(intercept=0,slope=1)
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 37. Make a new HCHS/SOL gene list, NOT excluding SNPs with >5% MAF
+
+# use freeze1 annotation files!
+
+# ran in batch, by chr:
+# cd /projects/users/caitlin/keats_x/keats_optimal/olga_rbc_assoc
+# qsub -q olga.q -p -50 -t 1-23 -N geneList batch_make_geneList_inclSmallMAF.sh
+# which calls make_geneList_inclSmallMAF.R
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+library(GWASTools)
+library(ggplot2)
+
+# read in all gene lists to make plots of some summaries
+geneAnnot <- NULL
+geneList <- NULL
+for(i in 1:23){
+  dat <- read.table(paste0("olga_rbc_assoc/geneList_inclSmallMAF_chr",i,".txt"),header=T,as.is=T)
+  geneAnnot <- rbind(geneAnnot,dat)
+  
+  dat <- getobj(paste0("olga_rbc_assoc/snpIDs_genes_inclSmallMAF_chr",i,".RData"))
+  geneList <- c(geneList,dat)
+}
+dim(geneAnnot) # 19629 2
+length(geneList) # 19629
+
+t <- sapply(geneList,length)
+summary(t)
+#Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#4.00   11.00   24.00   58.76   55.00 4951.00 
+which.max(t)# gene 64478; CSMD1 on 8p23.2
+sum(t) # 1153339
+
+library(ggplot2)
+pdf("olga_rbc_assoc/rbc_assoc_geneList_inclSmallMAF_hist_19629.pdf")
+ggplot(data.frame(t),aes(t)) + geom_histogram(binwidth=10) + theme_bw() + 
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  ylab("Frequency") + xlab("SNPs per Gene") + 
+  ggtitle("Number of SNPs per 19,629 Genes")
+dev.off()
+
+
+# make a plot of genes by chromosome
+pdf("olga_rbc_assoc/rbc_assoc_geneList_inclSmallMAF_histByChr_19629.pdf")
+ggplot(geneAnnot,aes(chromosome)) + geom_histogram(binwidth=1) + theme_bw() + 
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(breaks=seq(1,23,1)) +
+  ylab("Frequency") + xlab("Genes per Chromosome") + 
+  ggtitle("Number of Genes per Chromosome")
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 38. HCHS/SOL genome-wide using MONSTER, and SKAT on unrelateds
+
+# MONSTER is calling KEATS-O with the auto KC matrix only
+# called:
+# cd /projects/users/caitlin/keats_x/keats_optimal/olga_rbc_assoc/
+# qsub -q olga.q -p -50 -t 1-23 -N rbcKEATSx batch_geneList_rbc_genomeWide_autoKConly_assoc.sh
+
+# SKAT is calling KEATS-O with no KC matrix, subset to unrelated samples
+# called:
+# cd /projects/users/caitlin/keats_x/keats_optimal/olga_rbc_assoc/
+# qsub -q olga.q -p -50 -t 1-23 -N skatoRBC batch_geneList_rbc_genomeWide_skato_assoc.sh
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+library(GWASTools); library(QCpipeline)
+library(OLGApipeline); library(OLGAanalysis)
+library(ggplot2)
+
+# process skato results
+geneAnnot <- read.table("olga_rbc_assoc/geneList_genomewide_results.txt",header=T,as.is=T)
+
+geneAnnot$skato.nvar <- NA
+geneAnnot$skato.nsamp <- NA
+geneAnnot$skato.pval <- NA
+geneAnnot$skato.optimalRho <- NA
+
+chrs <- 1:23
+for(i in chrs){
+  fn <- paste0("olga_rbc_assoc/rbc_snpIDs_genomewide_skatoResults_chr",i,".RData")
+  dat <- getobj(fn)
+  # 2nd value of each list item is the gene p-value
+  # $nvar is the number of vars used
+  # $nsamp is number of samples used
+  # do another loop through the list of genes
+  for(j in 1:length(dat)){
+    ind <- which(geneAnnot$geneID==dat[[j]]$gene)
+    geneAnnot$p.value[ind] <- dat[[j]][[2]]
+    geneAnnot$nvar[ind] <- dat[[j]]$nvar
+    geneAnnot$nsamp[ind] <- dat[[j]]$nsamp
+    opt <- dat[[j]][[1]]
+    geneAnnot$optimal.rho[ind] <- opt$rho[which.min(opt$pvalue)]
+  }
+}
+
+dim(geneAnnot) # 16498 6
+sum(is.na(geneAnnot$p.value))
+
+
+
+
+#####
+# 39. KEATSO on HCHS/SOL genome-wide, NOT filtering out SNPs with >5% MAF
+
+# use gds files per chromosome that have all genotyped SNPs that pass quality filter, with sporadic missingness imputed
+# by shapeit
+# /projects/geneva/gcc-fs2/OLGA/genotype/freeze1/gds/observed/SOL_obs_from_imp_chr-10.gds 
+
+# need to write the script to loop through by chromosome
+# then through genes that are on a particular chromosome
+
+# called:
+# cd /projects/users/caitlin/keats_x/keats_optimal/olga_rbc_assoc/
+# qsub -q olga.q -p -50 -t 1-23 -N rbcKEsm batch_geneList_rbc_genomeWide_assoc.sh
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+library(GWASTools); library(QCpipeline)
+library(OLGApipeline); library(OLGAanalysis)
+library(MASS)
+library(SNPRelate)
+library(survey)
+library(kinship)
+library(pbivnorm)
+library(SKAT)
+library(dplyr); library(tidyr)
+library(ggplot2); library(readr)
+library(GenomicFeatures); library(QCannot)
+library(biomaRt)
+
+geneAnnot <- NULL
+for(i in 1:23){
+  tmp <- read.table(paste0("olga_rbc_assoc/geneList_inclSmallMAF_chr",i,".txt"),header=T,as.is=T)
+  geneAnnot <- rbind(geneAnnot,tmp)
+}
+geneAnnot$p.value <- NA
+geneAnnot$nvar <- NA
+geneAnnot$nsamp <- NA
+geneAnnot$optimal.rho <- NA
+dim(geneAnnot) # 19629 6
+
+chrs <- 1:23
+for(i in chrs){
+  fn <- paste0("olga_rbc_assoc/rbc_snpIDs_genomewide_inclSmallMAF_keatsoResults",i,".RData")
+  dat <- getobj(fn)
+  # 2nd value of each list item is the gene p-value
+  # $nvar is the number of vars used
+  # $nsamp is number of samples used
+  # do another loop through the list of genes
+  for(j in 1:length(dat)){
+    ind <- which(geneAnnot$geneID==dat[[j]]$gene)
+    geneAnnot$p.value[ind] <- dat[[j]][[2]]
+    geneAnnot$nvar[ind] <- dat[[j]]$nvar
+    geneAnnot$nsamp[ind] <- dat[[j]]$nsamp
+    opt <- dat[[j]][[1]]
+    geneAnnot$optimal.rho[ind] <- opt$rho[which.min(opt$pvalue)]
+  }
+}
+
+dim(geneAnnot) # 19629 6
+sum(is.na(geneAnnot$p.value)) # 0; good
+
+# make a manh plot of the p-values
+png("olga_rbc_assoc/genomeWide_inclSmallMAF_keatso_manh.png",width=600)
+manhattanPlot(geneAnnot$p.value,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/19629)
+dev.off()
+
+# plot the nvar by p.value
+pdf("olga_rbc_assoc/genomeWide_inclSmallMAF_pvalue_byNvar.pdf")
+ggplot(geneAnnot,aes(x=-log10(p.value),y=nvar))+geom_point()+theme_bw()
+dev.off() # no trend, many of the sig pvalues are on the low end of the nvar
+
+pdf("olga_rbc_assoc/genomeWide_inclSmallMAF_optimalRho_hist.pdf")
+ggplot(geneAnnot,aes(x=optimal.rho))+geom_histogram(binwidth=0.1)+theme_bw()+
+  xlab(expression(paste("Optimal ",rho))) + scale_x_continuous(breaks=seq(0,1,0.1)) 
+dev.off() 
+
+write.table(geneAnnot,file="olga_rbc_assoc/geneList_inclSmallMAF_genomewide_results.txt",row.names=FALSE,quote=FALSE)
+
+# get the significant gene names
+0.05/19629 # 3.03e-06
+geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>-log10(0.05/19629),]
+#          geneID chromosome      p.value nvar nsamp optimal.rho
+# 14229     55692         16 1.384604e-16  109 12489           0
+# 14230     83986         16 1.640016e-13   26 12489           0
+# 14240      9727         16 9.835044e-09   77 12489           0
+# 19617      2539         23 3.264979e-16   12 12488           0
+# 19620      4354         23 1.715940e-08   10 12488           0
+# 19621 100132963         23 2.320606e-10    7 12488           0
+# 19622      2157         23 8.232680e-08   43 12488           0
+
+library(xtable)
+print(xtable(geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,],digits=c(0,0,0,0,0,0,1)),include.rownames=FALSE)
+
+# add mtxt for the 6 most sig p-values
+png("olga_rbc_assoc/genomeWide_inclSmallMAF_keatso_manh_annotated.png",width=600)
+manhattanPlot(geneAnnot$p.value,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/19629)
+N <- nrow(geneAnnot)
+chromstart <- which(c(1, diff(geneAnnot$chromosome)) == 1)
+chromend <- c(chromstart[-1], N)
+geneAnnot$x <- (1:N) + geneAnnot$chromosome * (chromend[1]/6)
+hits <- geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,]
+text(x=hits$x,y=-log10(hits$p.value)-0.4,labels=c("LUC7L","ITFG3","RAB11FIP3","G6PD","MPP1","SMIM9","F8"))
+dev.off()
+
+# read in single snp association p-values for these regions
+# record the most sig in the region, also the bonf corrected sig p-value, based on #vars in gene region
+# want chrs 16, 23
+# need SNPs for each gene region, too
+geneList <- NULL
+for(i in c(16,23)){
+  dat <- getobj(paste0("olga_rbc_assoc/snpIDs_genes_inclSmallMAF_chr",i,".RData"))
+  geneList <- c(geneList,dat)
+}
+geneList <- lapply(geneList,function(x){unique(x)})
+
+assc16 <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr16.RData")
+assc23 <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr23.RData")
+
+hits$sigP <- NA
+hits$sigP.bonf <- NA
+for(i in 1:nrow(hits)){
+  snps <- geneList[as.character(hits$geneID[i])]  
+  if(hits$chromosome[i]==16){
+    pvals <- assc16$pval[is.element(assc16$snpID,unlist(snps))]
+  }
+  if(hits$chromosome[i]==23){
+    pvals <- assc23$pval[is.element(assc23$snpID,unlist(snps))]
+  }
+  stopifnot(length(pvals)==length(unlist(snps)))
+  hits$sigP[i] <- min(pvals,na.rm=T)
+  hits$sigP.bonf[i] <- min(pvals,na.rm=T)*length(pvals)
+  rm(snps)
+}
+
+#print(xtable(hits[,c(7,8,9,4,3,6,11,12)],digits=c(0,0,0,0,0,0,1)),include.rownames=FALSE)
+
+# get the pvalues for the rare analysis sig genes for table in dissertation
+geneAnnot[is.element(geneAnnot$geneID,c(3043,83986)),]
+
+rm(list=ls())
+
+
+#####
+# 40. KEATSO pvalues for genome-wide sig hits, compared to KEATS pvalues
+
+# get the KEATS-O p-values for gene-based genome-wide results
+# compare to KEATS-O p-values for when rho=0 and rho=1
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+library(GWASTools); library(QCpipeline)
+library(OLGApipeline); library(OLGAanalysis)
+
+geneAnnot <- read.table("olga_rbc_assoc/geneList_genomewide_results.txt",header=T,as.is=T)
+
+# merge in KEATS-bt and KEATS p-values
+geneAnnot$keats.bt.pval <- NA
+geneAnnot$keats.pval <- NA
+
+chrs <- 1:23
+for(i in chrs){
+  fn <- paste0("olga_rbc_assoc/rbc_snpIDs_genomewide_keatsoResults_chr",i,".RData")
+  dat <- getobj(fn)
+  # 2nd value of each list item is the gene p-value
+  # $nvar is the number of vars used
+  # $nsamp is number of samples used
+  # do another loop through the list of genes
+  for(j in 1:length(dat)){
+    ind <- which(geneAnnot$geneID==dat[[j]]$gene)
+    geneAnnot$keats.pval[ind] <- dat[[j]][[1]][1,2]
+    geneAnnot$keats.bt.pval[ind] <- dat[[j]][[1]][11,2]
+    }
+}
+
+# so these are bt p-values using rho=1 in the keats-o analysis
+
+# save the new geneAnnot
+write.table(geneAnnot,file="olga_rbc_assoc/geneList_genomewide_results.txt",row.names=FALSE,quote=FALSE)
+
+# look up the pvalues for the six sig genes
+library(xtable)
+geneAnnot[-log10(geneAnnot$p.value)>6,c("geneID","chromosome","chromosome","nvar","p.value","optimal.rho","keats.bt.pval","keats.pval")]
+print(xtable(geneAnnot[-log10(geneAnnot$p.value)>6,c("geneID","chromosome","chromosome","nvar","p.value","optimal.rho","keats.bt.pval","keats.pval")],
+             digits=c(0,0,0,0,0,0,0,0,1)),include.rownames=FALSE)
+
+rm(list=ls())
 
