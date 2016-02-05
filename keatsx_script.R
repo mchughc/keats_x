@@ -42,6 +42,15 @@
 # 38. HCHS/SOL genome-wide using MONSTER, and SKAT on unrelateds
 # 39. KEATSO on HCHS/SOL genome-wide, NOT filtering out SNPs with >5% MAF
 # 40. KEATSO pvalues for genome-wide sig hits, compared to KEATS pvalues
+# 41. KEATSO on rare SNPs, platelet HCHS/SOL 
+# 42. KEATSO on rare + common SNPs, platelet HCHS/SOL 
+# 43. Look at how the variants are mapped to genes
+# 44. Follow up on hits from KEATSO rare analysis
+# 45. Make table of HBB variants to send to RBC email list
+# 46. More power sims to add to dissertation
+# 47. Make heatmaps of LD between variants in chr 16, x chr RBC gene hits
+# 48. Find GATS and AHI1 rare gene analysis p-values
+
 
 
 #####
@@ -3303,6 +3312,7 @@ dev.off()
 
 rm(list=ls())
 
+
 #####
 # 18. Power results, keatso, chrX and auto for different mixes of +/-
 
@@ -5611,7 +5621,8 @@ for(i in chrs){
 }
 
 dim(geneAnnot) # 16498 6
-sum(is.na(geneAnnot$p.value))
+sum(is.na(geneAnnot$p.value)) # 2
+
 
 # make a manh plot of the p-values
 png("olga_rbc_assoc/genomeWide_keatso_manh.png",width=600)
@@ -6628,3 +6639,1486 @@ print(xtable(geneAnnot[-log10(geneAnnot$p.value)>6,c("geneID","chromosome","chro
 
 rm(list=ls())
 
+
+#####
+# 41. KEATSO on rare SNPs, platelet HCHS/SOL 
+
+# analysis id 636058
+# called:
+# cd /projects/users/caitlin/keats_x/keats_optimal/olga_platelet_assoc/
+# qsub -q olga.q -N platKeatsX -t 1-23 batch_geneList_platelet_genomeWide_assoc.sh
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+library(GWASTools); library(QCpipeline)
+library(OLGApipeline); library(OLGAanalysis)
+library(MASS)
+library(SNPRelate)
+library(survey)c
+library(kinship)
+library(pbivnorm)
+library(SKAT)
+library(dplyr); library(tidyr)
+library(ggplot2); library(readr)
+library(GenomicFeatures); library(QCannot)
+library(biomaRt)
+
+geneAnnot <- NULL
+for(i in 1:23){
+  tmp <- read.table(paste0("olga_rbc_assoc/geneList_chr",i,".txt"),header=T,as.is=T)
+  geneAnnot <- rbind(geneAnnot,tmp)
+}
+geneAnnot$p.value <- NA
+geneAnnot$nvar <- NA
+geneAnnot$nsamp <- NA
+geneAnnot$optimal.rho <- NA
+
+chrs <- 1:23
+for(i in chrs){
+  fn <- paste0("olga_platelet_assoc/platelet_snpIDs_genomewide_keatsoResults",i,".RData")
+  dat <- getobj(fn)
+  # 2nd value of each list item is the gene p-value
+  # $nvar is the number of vars used
+  # $nsamp is number of samples used
+  # do another loop through the list of genes
+  for(j in 1:length(dat)){
+    ind <- which(geneAnnot$geneID==dat[[j]]$gene)
+    geneAnnot$p.value[ind] <- dat[[j]][[2]]
+    geneAnnot$nvar[ind] <- dat[[j]]$nvar
+    geneAnnot$nsamp[ind] <- dat[[j]]$nsamp
+    opt <- dat[[j]][[1]]
+    geneAnnot$optimal.rho[ind] <- opt$rho[which.min(opt$pvalue)]
+  }
+}
+
+dim(geneAnnot) # 16500 6
+sum(is.na(geneAnnot$p.value)) # 114
+table(is.na(geneAnnot$p.value),geneAnnot$chromosome) # chr 20
+
+# make a manh plot of the p-values
+png("olga_platelet_assoc/genomeWide_keatso_manh.png",width=600)
+manhattanPlot(geneAnnot$p.value,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/16500)
+dev.off()
+# hmm only one hit, chr 19
+
+# plot the nvar by p.value
+pdf("olga_platelet_assoc/genomeWide_pvalue_byNvar.pdf")
+ggplot(geneAnnot,aes(x=-log10(p.value),y=nvar))+geom_point()+theme_bw()
+dev.off() # no trend, many of the sig pvalues are on the low end of the nvar
+
+pdf("olga_platelet_assoc/genomeWide_optimalRho_hist.pdf")
+ggplot(geneAnnot,aes(x=optimal.rho))+geom_histogram(binwidth=0.1)+theme_bw()+
+  xlab(expression(paste("Optimal ",rho))) + scale_x_continuous(breaks=seq(0,1,0.1)) 
+dev.off() 
+
+write.table(geneAnnot,file="olga_platelet_assoc/geneList_genomewide_results.txt",row.names=FALSE,quote=FALSE)
+
+# get the significant gene names
+0.05/16500 # 3.03e-06
+geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>5,]
+#      geneID chromosome      p.value nvar nsamp optimal.rho
+#14356   7171         19 1.893137e-06   10 12478           0
+
+# is gene TPM4; already known...
+
+library(xtable)
+print(xtable(geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,],digits=c(0,0,0,0,0,0,1)),include.rownames=FALSE)
+
+# add mtxt for the sig p-value
+png("olga_platelet_assoc/genomeWide_keatso_manh_annotated.png",width=600)
+manhattanPlot(geneAnnot$p.value,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/16500)
+N <- nrow(geneAnnot)
+chromstart <- which(c(1, diff(geneAnnot$chromosome)) == 1)
+chromend <- c(chromstart[-1], N)
+geneAnnot$x <- (1:N) + geneAnnot$chromosome * (chromend[1]/6)
+hits <- geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>5,]
+text(x=hits$x,y=-log10(hits$p.value)+0.6,labels=c("TPM4"))
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 42. KEATSO on rare + common SNPs, platelet HCHS/SOL 
+
+# analysis id 636058
+# called:
+# cd /projects/users/caitlin/keats_x/keats_optimal/olga_platelet_assoc/
+# qsub -q olga.q -t 1-23 -N platKeSm batch_geneList_platelet_genomeWide_assoc.sh
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+library(GWASTools); library(QCpipeline)
+library(OLGApipeline); library(OLGAanalysis)
+library(MASS)
+library(SNPRelate)
+library(survey)
+library(kinship)
+library(pbivnorm)
+library(SKAT)
+library(dplyr); library(tidyr)
+library(ggplot2); library(readr)
+library(GenomicFeatures); library(QCannot)
+library(biomaRt)
+
+geneAnnot <- NULL
+for(i in 1:23){
+  tmp <- read.table(paste0("olga_rbc_assoc/geneList_inclSmallMAF_chr",i,".txt"),header=T,as.is=T)
+  geneAnnot <- rbind(geneAnnot,tmp)
+}
+geneAnnot$p.value <- NA
+geneAnnot$nvar <- NA
+geneAnnot$nsamp <- NA
+geneAnnot$optimal.rho <- NA
+
+chrs <- 1:23
+for(i in chrs){
+  fn <- paste0("olga_platelet_assoc/platelet_snpIDs_genomewide_inclSmallMAF_keatsoResults",i,".RData")
+  dat <- getobj(fn)
+  # 2nd value of each list item is the gene p-value
+  # $nvar is the number of vars used
+  # $nsamp is number of samples used
+  # do another loop through the list of genes
+  for(j in 1:length(dat)){
+    ind <- which(geneAnnot$geneID==dat[[j]]$gene)
+    geneAnnot$p.value[ind] <- dat[[j]][[2]]
+    geneAnnot$nvar[ind] <- dat[[j]]$nvar
+    geneAnnot$nsamp[ind] <- dat[[j]]$nsamp
+    opt <- dat[[j]][[1]]
+    geneAnnot$optimal.rho[ind] <- opt$rho[which.min(opt$pvalue)]
+  }
+}
+
+dim(geneAnnot) # 19629 6
+sum(is.na(geneAnnot$p.value)) # 0
+
+# make a manh plot of the p-values
+png("olga_platelet_assoc/genomeWide_keatso_inclSmallMAF_manh.png",width=600)
+manhattanPlot(geneAnnot$p.value,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/nrow(geneAnnot))
+dev.off()
+# hmm only one hit, chr 19
+
+# plot the nvar by p.value
+pdf("olga_platelet_assoc/genomeWide_inclSmallMAF_pvalue_byNvar.pdf")
+ggplot(geneAnnot,aes(x=-log10(p.value),y=nvar))+geom_point()+theme_bw()
+dev.off() # no trend, many of the sig pvalues are on the low end of the nvar
+
+pdf("olga_platelet_assoc/genomeWide_inclSmallMAF_optimalRho_hist.pdf")
+ggplot(geneAnnot,aes(x=optimal.rho))+geom_histogram(binwidth=0.1)+theme_bw()+
+  xlab(expression(paste("Optimal ",rho))) + scale_x_continuous(breaks=seq(0,1,0.1)) 
+dev.off() 
+
+write.table(geneAnnot,file="olga_platelet_assoc/geneList_inclSmallMAF_genomewide_results.txt",row.names=FALSE,quote=FALSE)
+
+# get the significant gene names
+0.05/nrow(geneAnnot) # 2.547e-06
+geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>5,]
+#      geneID chromosome      p.value nvar nsamp optimal.rho
+#14356   7171         19 1.893137e-06   10 12478           0
+
+# is gene TPM4; already known...
+
+library(xtable)
+print(xtable(geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,],digits=c(0,0,0,0,0,0,1)),include.rownames=FALSE)
+
+# add mtxt for the sig p-value
+png("olga_platelet_assoc/genomeWide_keatso_inclSmallMAF_manh_annotated.png",width=600)
+manhattanPlot(geneAnnot$p.value,geneAnnot$chromosome,trunc.lines=FALSE,ylim=c(0,16),
+              signif=0.05/nrow(geneAnnot))
+N <- nrow(geneAnnot)
+chromstart <- which(c(1, diff(geneAnnot$chromosome)) == 1)
+chromend <- c(chromstart[-1], N)
+geneAnnot$x <- (1:N) + geneAnnot$chromosome * (chromend[1]/6)
+hits <- geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>5,]
+text(x=hits$x,y=-log10(hits$p.value)+0.6,labels=c("TPM4"))
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 43. Look at how the variants are mapped to genes
+
+# how many of the variants are mapped to 1, 2, ... genes?
+library(GenomicFeatures); library(QCannot)
+library(biomaRt); library(ggplot2)
+library(GWASTools)
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+
+# first look at the rare gene regions
+geneList <- NULL
+for(i in 1:23){
+  dat <- getobj(paste0("olga_rbc_assoc/snpIDs_genes_chr",i,".RData"))
+  geneList <- c(geneList,dat)
+}
+geneList <- lapply(geneList,function(x){unique(x)})
+length(geneList) # 16500
+
+# get a table of the count of each time the variant shows up in the geneList
+t <- table(unlist(geneList))
+table(t)
+#     1      2      3      4      5      6      7      8      9     10     11 
+#411829  18584   1030     98     20      8     12     24     41      8      3 
+#12     13     14     15     16     17     18     19     20     21     22 
+#17      9     24     57      2      1      5      7      6      2     25 
+
+# so 411829 show up once
+# 18584 show up twice
+# 1030 show up 3x
+# 98 show up 4x
+# 25 show up 22x!
+
+library(xtable)
+print(xtable(table(t)),row.names=FALSE)
+
+pdf("olga_rbc_assoc/hist_tableOfVars_perGene.pdf")
+ggplot(data.frame(t)) + geom_histogram(aes(x=Freq)) + theme_bw()
+dev.off()
+
+toPl <- data.frame(t,stringsAsFactors=FALSE)
+toPl$Freq <- as.integer(toPl$Freq)
+toPl$Var1 <- as.integer(toPl$Var1)
+
+pdf("olga_rbc_assoc/hist_tableOfVars_perGene_trunc.pdf")
+ggplot(toPl,aes(x=Freq)) + ggtitle("Frequency of 431,812 SNPs Appearing in 16,500 Genes") +
+  geom_histogram(binwidth=1) + theme_bw() + coord_cartesian(ylim=c(0,110)) + #ylim(c(0,100)) + 
+  xlim(c(1,22)) +
+  stat_bin(geom="text", aes(label=..count.., vjust=-1),binwidth=1) +
+  annotate("text", x = 1.9, y = 90, label = "411829",size=3.8,color="white") + 
+  annotate("text", x = 2.2, y = 85, label = "18584",size=3.8,color="white") +
+  annotate("text", x = 3, y = 80, label = "1030",size=3.8,color="white")
+dev.off()
+
+# which are the snps that are mapped to many genes?
+highFreq <- names(t)[t==22]
+diff(as.integer(highFreq)) # they're all pretty close together
+
+# try to figure out which genes they are in to find which chr SNP annot to look at
+genIn <- sapply(geneList,function(x){sum(is.element(x,highFreq))})
+genIn[genIn>0] # so here are the 22 genes
+# a gene on chr 5, i think
+
+#read in snp annot
+snp <- getobj(paste0("/projects/geneva/gcc-fs2/OLGA/genotype/freeze1/annotation/SOL_freeze1_snpAnnot_chr-5.RData"))
+snpSm <- snp[is.element(snp$snpID,highFreq),]
+pData(snpSm)
+# all on chr 5, between 140868085 - 140889260
+
+mart <- useMart("ensembl", dataset="hsapiens_gene_ensembl")
+ann <- getBM(c("hgnc_symbol","description","chromosome_name","band","strand","start_position","end_position",
+               "ensembl_gene_id"), "entrezgene", names(genIn)[genIn>0], mart)
+ann$hgnc_symbol
+#[1] "PCDHGA12" "PCDHGC3"  "PCDHGC5"  "PCDHGC4"  "PCDHGB7"  "PCDHGB6" 
+#[7] "PCDHGB5"  "PCDHGB3"  "PCDHGB2"  "PCDHGB1"  "PCDHGA11" "PCDHGA10"
+#[13] "PCDHGA9"  "PCDHGA7"  "PCDHGA6"  "PCDHGA5"  "PCDHGA4"  "PCDHGA3" 
+#[19] "PCDHGA2"  "PCDHGA1"  "PCDHGB4"  "PCDHGA8" 
+
+##
+# now look at rare + common genes
+geneList <- NULL
+for(i in 1:23){
+  dat <- getobj(paste0("olga_rbc_assoc/snpIDs_genes_inclSmallMAF_chr",i,".RData"))
+  geneList <- c(geneList,dat)
+}
+geneList <- lapply(geneList,function(x){unique(x)})
+length(geneList) # 19629
+
+# get a table of the count of each time the variant shows up in the geneList
+t <- table(unlist(geneList))
+table(t)
+#      1       2       3       4       5       6       7       8       9      10 
+#1000236   44884    2461     295      58      22      21      40      62      12 
+#11      12      13      14      15      16      17      18      19      20 
+# 6      23      17      46      73       2       2       9      18      11 
+#21      22 
+# 4      43 
+
+# so 1000236 show up once
+# 44884 show up twice
+# 2461 show up 3x
+# 295 show up 4x
+# 58 show up 22x!
+
+library(xtable)
+print(xtable(table(t)),row.names=FALSE)
+
+pdf("olga_rbc_assoc/hist_tableOfVars_perGene_inclSmallMAF.pdf")
+ggplot(data.frame(t)) + geom_histogram(aes(x=Freq)) + theme_bw()
+dev.off()
+
+toPl <- data.frame(t,stringsAsFactors=FALSE)
+toPl$Freq <- as.integer(toPl$Freq)
+toPl$Var1 <- as.integer(toPl$Var1)
+
+pdf("olga_rbc_assoc/hist_tableOfVars_perGene_inclSmallMAF_trunc.pdf")
+ggplot(toPl,aes(x=Freq)) + ggtitle("Frequency of 1,048,345 SNPs Appearing in 19,629 Genes") +
+  geom_histogram(binwidth=1) + theme_bw() + coord_cartesian(ylim=c(0,340)) + xlim(c(1,22)) +
+  stat_bin(geom="text", aes(label=..count.., vjust=-1),binwidth=1) +
+  annotate("text", x = 2.0, y = 330, label = "1000236",size=3.8,color="white") + 
+  annotate("text", x = 2.2, y = 320, label = "44884",size=3.8,color="white") +
+  annotate("text", x = 3, y = 310, label = "2461",size=3.8,color="white")
+dev.off()
+
+# which are the snps that are mapped to many genes?
+highFreq <- names(t)[t==22]
+diff(as.integer(highFreq)) # they're all pretty close together
+
+# try to figure out which genes they are in to find which chr SNP annot to look at
+genIn <- sapply(geneList,function(x){sum(is.element(x,highFreq))})
+genIn[genIn>0] # so here are the 22 genes
+# a gene on chr 5, i think
+
+#read in snp annot
+snp <- getobj(paste0("/projects/geneva/gcc-fs2/OLGA/genotype/freeze1/annotation/SOL_freeze1_snpAnnot_chr-5.RData"))
+snpSm <- snp[is.element(snp$snpID,highFreq),]
+# all on chr 5, between 140867347 - 140890770
+
+ann <- getBM(c("hgnc_symbol","description","chromosome_name","band","strand","start_position","end_position",
+               "ensembl_gene_id"), "entrezgene", names(genIn)[genIn>0], mart)
+ann$hgnc_symbol
+#[1] "PCDHGA12" "PCDHGC3"  "PCDHGC5"  "PCDHGC4"  "PCDHGB7"  "PCDHGB6" 
+#[7] "PCDHGB5"  "PCDHGB3"  "PCDHGB2"  "PCDHGB1"  "PCDHGA11" "PCDHGA10"
+#[13] "PCDHGA9"  "PCDHGA7"  "PCDHGA6"  "PCDHGA5"  "PCDHGA4"  "PCDHGA3" 
+#[19] "PCDHGA2"  "PCDHGA1"  "PCDHGB4"  "PCDHGA8" 
+#protocadherin gamma subfamily A, 12; B, 3; C, 4; C, 5; ...
+
+rm(list=ls())
+
+
+#####
+# 44. Follow up on hits from KEATSO rare analysis
+
+# for each of the sig genes, look at the single var test results 
+# what are the MAF of each of the variants?
+# what is the p-value? 
+# what do the cluster plots look like?
+# how much of the variants are overlapping in the chr 16 and x chr genes?
+
+library(GWASTools)
+library(OLGApipeline); library(OLGAanalysis)
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+
+geneAnnot <- read.table("olga_rbc_assoc/geneList_genomewide_results.txt",header=TRUE,as.is=TRUE)
+dim(geneAnnot) # 16502 13
+head(geneAnnot)
+
+hits <- geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,]
+
+# get the mapping of snps to genes
+map16 <- get(load("olga_rbc_assoc/snpIDs_genes_chr16.RData"))
+map16 <- sapply(map16,function(x){unique(x)})
+
+hitsMap <- map16[is.element(names(map16),hits$geneID)]
+snpRes <- data.frame(unlist(hitsMap))
+len <- sapply(hitsMap,function(x){length(x)})
+snpRes$gene <- rep(names(len),len)
+snpRes <- merge(snpRes,hits,by.x="gene",by.y="geneID",all.x=TRUE)
+colnames(snpRes)[2] <- "snpID"
+
+## ok, do this for the chr 23 hits too
+# get the mapping of snps to genes
+map23 <- get(load("olga_rbc_assoc/snpIDs_genes_chr23.RData"))
+map23 <- sapply(map23,function(x){unique(x)})
+
+hitsMap <- map23[is.element(names(map23),hits$geneID)]
+snpRes2 <- data.frame(unlist(hitsMap))
+len <- sapply(hitsMap,function(x){length(x)})
+snpRes2$gene <- rep(names(len),len)
+snpRes2 <- merge(snpRes2,hits,by.x="gene",by.y="geneID",all.x=TRUE)
+colnames(snpRes2)[2] <- "snpID"
+
+snpRes <- rbind(snpRes,snpRes2)
+
+sum(is.na(snpRes$singleTest.min.pval)) # 0
+snpRes$singleTest.min.pval.x <- snpRes$singleTest.min.pval.y <- NULL
+
+# make sure we aren't missing any single vars that were sig in the single SNP test in these regions
+assc <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr16.RData")
+assc <- assc[!is.na(assc$pval),]
+assc <- assc[assc$pval<5e-8|is.element(assc$snpID,snpRes$snpID),]
+dim(assc) # 296 17
+
+snpRes <- merge(snpRes,assc[,c("snpID","n","Stat","pval")],by="snpID",all=TRUE)
+
+assc <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr23.RData")
+assc <- assc[!is.na(assc$pval),]
+assc <- assc[assc$pval<5e-8|is.element(assc$snpID,snpRes$snpID),]
+dim(assc) # 158 17
+
+snpRes <- merge(snpRes,assc[,c("snpID","n","Stat","pval")],by="snpID",all=TRUE)
+
+snpRes$n <- snpRes$n.x
+snpRes$n[is.na(snpRes$n)] <- snpRes$n.y[is.na(snpRes$n)]
+snpRes$n.x <- snpRes$n.y <- NULL
+
+snpRes$Stat <- snpRes$Stat.x
+snpRes$Stat[is.na(snpRes$Stat)] <- snpRes$Stat.y[is.na(snpRes$Stat)]
+snpRes$Stat.x <- snpRes$Stat.y <- NULL
+
+snpRes$single.test.pval <- snpRes$pval.x
+snpRes$single.test.pval[is.na(snpRes$single.test.pval)] <- snpRes$pval.y[is.na(snpRes$single.test.pval)]
+snpRes$pval.x <- snpRes$pval.y <- NULL
+
+dim(snpRes) # 468 15
+
+# get the snp annot
+olgaData <- OlgaGenotypeData("/projects/geneva/gcc-fs2/OLGA/genotype/freeze1/gds/freeze1")
+snpAnnot <- getSnpAnnotation(olgaData, chromosome=16) 
+
+snpRes <- merge(snpRes,pData(snpAnnot)[,c("rsID","snpID","position","chromosome")],by="snpID",all.x=TRUE)
+dim(snpRes) # 468 18
+
+snpRes$chromosome <- snpRes$chromosome.x
+snpRes$chromosome[is.na(snpRes$chromosome)] <- snpRes$chromosome.y[is.na(snpRes$chromosome)]
+snpRes$chromosome.x <- snpRes$chromosome.y <- NULL
+
+snpAnnot <- getSnpAnnotation(olgaData, chromosome=23) 
+
+snpRes <- merge(snpRes,pData(snpAnnot)[,c("rsID","snpID","position","chromosome")],by="snpID",all.x=TRUE)
+dim(snpRes) # 468 20
+
+snpRes$position <- snpRes$position.x
+snpRes$position[is.na(snpRes$position)] <- snpRes$position.y[is.na(snpRes$position)]
+snpRes$position.x <- snpRes$position.y <- NULL
+
+snpRes$rsID <- snpRes$rsID.x
+snpRes$rsID[is.na(snpRes$rsID)] <- snpRes$rsID.y[is.na(snpRes$rsID)]
+snpRes$rsID.x <- snpRes$rsID.y <- NULL
+
+snpRes$chromosome <- snpRes$chromosome.x
+snpRes$chromosome[is.na(snpRes$chromosome)] <- snpRes$chromosome.y[is.na(snpRes$chromosome)]
+snpRes$chromosome.x <- snpRes$chromosome.y <- NULL
+
+
+# now merge in the old SNP annot so we can get MAF
+snpAnnot <- get(load("/projects/geneva/gcc-fs2/OLGA/genotype/phaseIa/sample_snp_annot/SoL_HCHS_Custom_15041502_B3_all37_v25_AMS.RData"))
+snpRes <- merge(snpRes,pData(snpAnnot)[,c("rsID","exclude","MAF.study","composite.filter","quality.filter")],by="rsID",all.x=TRUE)
+dim(snpRes) # 468 21
+
+snpRes$geneName <- NA
+snpRes$geneName[snpRes$gene==2157] <- "F8"
+snpRes$geneName[snpRes$gene==55692] <- "LUC7L"
+snpRes$geneName[snpRes$gene==83986] <- "ITFG3"
+snpRes$geneName[snpRes$gene==9727] <- "RAB11FIP3"
+snpRes$geneName[snpRes$gene==2539] <- "G6PD"
+
+snpRes$geneName[is.na(snpRes$geneName)] <- "notMapped"
+
+t <- table(snpRes$snpID,snpRes$geneName)
+t[rowSums(t[,c(1:2)])>1,] # none
+t[rowSums(t[,c(3:5)])>1,] # some SNPs overlap between itfg3 and luc7l
+#          F8 G6PD ITFG3 LUC7L RAB11FIP3
+# 22666746  0    0     1     1         0
+# 22666782  0    0     1     1         0
+# 22666842  0    0     1     1         0
+# 22666903  0    0     1     1         0
+# 22666907  0    0     1     1         0
+# 22666972  0    0     1     1         0
+# 22667033  0    0     1     1         0
+# 22667039  0    0     1     1         0
+# 22667083  0    0     1     1         0
+# 22667103  0    0     1     1         0
+# 22667108  0    0     1     1         0
+# 22667132  0    0     1     1         0
+# 22667146  0    0     1     1         0
+# 
+
+# make table of chr 16 significant from single snp vs LUC7L vs ITFG3 vs RAB11FIP3
+sm <- snpRes[snpRes$chromosome==16,]
+table(sm$geneName,exclude=NULL)
+
+assc <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr16.RData")
+assc <- assc[!is.na(assc$pval)&assc$pval<5e-8,]
+dim(assc) # 225 17
+
+library(VennDiagram)
+todr <- list("SingleSNP"=assc$snpID,"LUC7L"=sm$snpID[sm$geneName=="LUC7L"],
+             "ITFG3"=sm$snpID[sm$geneName=="ITFG3"],"RAB11FIP3"=sm$snpID[sm$geneName=="RAB11FIP3"])
+venn.diagram(todr,filename="olga_rbc_assoc/venn_sigHits_chr16.tiff")
+
+# do the same for the chr 23 hits
+sm <- snpRes[snpRes$chromosome==23,]
+table(sm$geneName,exclude=NULL)
+
+assc <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr23.RData")
+assc <- assc[!is.na(assc$pval)&assc$pval<5e-8,]
+dim(assc) # 141 17
+
+todr <- list("F8"=sm$snpID[sm$geneName=="F8"],"SingleSNP"=assc$snpID,
+             "G6PD"=sm$snpID[sm$geneName=="G6PD"])
+venn.diagram(todr,filename="olga_rbc_assoc/venn_sigHits_chr23.tiff")
+
+# now, look at pvalues for single snp hits vs gene region test
+# make latex tables for these genes
+library(xtable)
+snpRes$single.test.pval <- format(snpRes$single.test.pval,digits=3)
+snpRes$MAF.study <- format(snpRes$MAF.study,digits=3)
+
+print(xtable(snpRes[snpRes$geneName=="G6PD",c("rsID","single.test.pval","MAF.study")],digits=c(1,0,2,2)),
+      include.rownames=FALSE)
+print(xtable(snpRes[snpRes$geneName=="F8",c("rsID","single.test.pval","MAF.study")],digits=c(1,0,6,6)),
+      include.rownames=FALSE)
+print(xtable(snpRes[snpRes$geneName=="LUC7L",c("rsID","single.test.pval","MAF.study")],digits=c(1,0,6,6)),
+      include.rownames=FALSE)
+print(xtable(snpRes[snpRes$geneName=="ITFG3",c("rsID","single.test.pval","MAF.study")],digits=c(1,0,6,6)),
+      include.rownames=FALSE)
+print(xtable(snpRes[snpRes$geneName=="RAB11FIP3",c("rsID","single.test.pval","MAF.study")],digits=c(1,0,6,6)),
+      include.rownames=FALSE)
+
+##
+# do this same thing for the HBB chr 11 hit
+geneAnnot <- read.table("olga_rbc_assoc/geneList_genomewide_results.txt",header=TRUE,as.is=TRUE)
+dim(geneAnnot) # 16502 13
+head(geneAnnot)
+
+hits <- geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,]
+
+# get the mapping of snps to genes
+map11 <- get(load("olga_rbc_assoc/snpIDs_genes_chr11.RData"))
+map11 <- sapply(map11,function(x){unique(x)})
+
+hitsMap <- map11[is.element(names(map11),hits$geneID)]
+snpRes <- data.frame(unlist(hitsMap))
+len <- sapply(hitsMap,function(x){length(x)})
+snpRes$gene <- rep(names(len),len)
+snpRes <- merge(snpRes,hits,by.x="gene",by.y="geneID",all.x=TRUE)
+colnames(snpRes)[2] <- "snpID"
+
+sum(is.na(snpRes$singleTest.min.pval)) # 0
+snpRes$singleTest.min.pval.x <- snpRes$singleTest.min.pval.y <- NULL
+
+# make sure we aren't missing any single vars that were sig in the single SNP test in these regions
+assc <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr11.RData")
+assc <- assc[!is.na(assc$pval),]
+assc <- assc[assc$pval<5e-8|is.element(assc$snpID,snpRes$snpID),]
+dim(assc) # 13 17
+
+snpRes <- merge(snpRes,assc[,c("snpID","n","Stat","pval")],by="snpID",all=TRUE)
+
+# get the snp annot
+olgaData <- OlgaGenotypeData("/projects/geneva/gcc-fs2/OLGA/genotype/freeze1/gds/freeze1")
+snpAnnot <- getSnpAnnotation(olgaData, chromosome=11) 
+
+snpRes <- merge(snpRes,pData(snpAnnot)[,c("rsID","snpID","position","chromosome")],by="snpID",all.x=TRUE)
+dim(snpRes) # 468 18
+
+snpRes$chromosome <- snpRes$chromosome.x
+snpRes$chromosome[is.na(snpRes$chromosome)] <- snpRes$chromosome.y[is.na(snpRes$chromosome)]
+snpRes$chromosome.x <- snpRes$chromosome.y <- NULL
+
+# now merge in the old SNP annot so we can get MAF
+snpAnnot <- get(load("/projects/geneva/gcc-fs2/OLGA/genotype/phaseIa/sample_snp_annot/SoL_HCHS_Custom_15041502_B3_all37_v25_AMS.RData"))
+snpRes <- merge(snpRes,pData(snpAnnot)[,c("rsID","exclude","MAF.study","composite.filter","quality.filter")],by="rsID",all.x=TRUE)
+dim(snpRes) # 13 21
+
+snpRes$geneName <- NA
+snpRes$geneName[snpRes$gene==3043] <- "HBB"
+snpRes$geneName[is.na(snpRes$geneName)] <- "notMapped"
+
+t <- table(snpRes$snpID,snpRes$geneName)
+
+# now, look at pvalues for single snp hits vs gene region test
+# make latex tables for these genes
+snpRes$pval <- format(snpRes$pval,digits=3)
+snpRes$MAF.study <- format(snpRes$MAF.study,digits=3)
+print(xtable(snpRes[snpRes$geneName=="HBB",c("rsID","pval","MAF.study")],digits=c(1,0,2,2)),
+      include.rownames=FALSE)
+
+rm(list=ls())
+
+
+#####
+# 45. Make table of HBB variants to send to RBC email list
+
+library(GWASTools)
+library(OLGApipeline); library(OLGAanalysis)
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+
+geneAnnot <- read.table("olga_rbc_assoc/geneList_genomewide_results.txt",header=TRUE,as.is=TRUE)
+dim(geneAnnot) # 16502 13
+head(geneAnnot)
+
+hits <- geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,]
+
+# want the variants mapped to gene HBB 
+# get the mapping of snps to genes
+map11 <- get(load("olga_rbc_assoc/snpIDs_genes_chr11.RData"))
+map11 <- sapply(map11,function(x){unique(x)})
+
+hitsMap <- map11[is.element(names(map11),hits$geneID)]
+snpRes <- data.frame(unlist(hitsMap))
+len <- sapply(hitsMap,function(x){length(x)})
+snpRes$gene <- rep(names(len),len)
+snpRes <- merge(snpRes,hits,by.x="gene",by.y="geneID",all.x=TRUE)
+colnames(snpRes)[2] <- "snpID"
+
+sum(is.na(snpRes$singleTest.min.pval)) # 0
+snpRes$singleTest.min.pval.x <- snpRes$singleTest.min.pval.y <- NULL
+
+# make sure we aren't missing any single vars that were sig in the single SNP test in these regions
+assc <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr11.RData")
+assc <- assc[!is.na(assc$pval),]
+assc <- assc[assc$pval<5e-8|is.element(assc$snpID,snpRes$snpID),]
+dim(assc) # 13 17
+
+snpRes <- merge(snpRes,assc[,c("snpID","n","Stat","pval")],by="snpID",all=TRUE)
+
+# get the snp annot
+olgaData <- OlgaGenotypeData("/projects/geneva/gcc-fs2/OLGA/genotype/freeze1/gds/freeze1")
+snpAnnot <- getSnpAnnotation(olgaData, chromosome=11) 
+
+snpRes <- merge(snpRes,pData(snpAnnot)[,c("rsID","snpID","position","chromosome")],by="snpID",all.x=TRUE)
+dim(snpRes) # 468 18
+
+snpRes$chromosome <- snpRes$chromosome.x
+snpRes$chromosome[is.na(snpRes$chromosome)] <- snpRes$chromosome.y[is.na(snpRes$chromosome)]
+snpRes$chromosome.x <- snpRes$chromosome.y <- NULL
+
+# now merge in the old SNP annot so we can get MAF
+snpAnnot <- get(load("/projects/geneva/gcc-fs2/OLGA/genotype/phaseIa/sample_snp_annot/SoL_HCHS_Custom_15041502_B3_all37_v25_AMS.RData"))
+snpRes <- merge(snpRes,pData(snpAnnot)[,c("rsID","exclude","MAF.study","composite.filter","quality.filter")],by="rsID",all.x=TRUE)
+dim(snpRes) # 13 21
+
+snpRes$geneName <- NA
+snpRes$geneName[snpRes$gene==3043] <- "HBB"
+snpRes$geneName[is.na(snpRes$geneName)] <- "notMapped"
+
+snpRes[snpRes$geneName=="HBB",]
+
+snpRes$rareAnalys[snpRes$geneName=="HBB"] <- TRUE
+
+## merge in variant mapping for rare + common analysis
+map11 <- get(load("olga_rbc_assoc/snpIDs_genes_inclSmallMAF_chr11.RData"))
+map11 <- sapply(map11,function(x){unique(x)})
+
+hbb <- snpRes[snpRes$geneName=="HBB",]
+comVarhbb <- map11[["3043"]]
+snpAnnot <- getSnpAnnotation(olgaData, chromosome=11) 
+snpAnnothbb <- snpAnnot[is.element(snpAnnot$snpID,comVarhbb),]
+
+snpAnnot <- get(load("/projects/geneva/gcc-fs2/OLGA/genotype/phaseIa/sample_snp_annot/SoL_HCHS_Custom_15041502_B3_all37_v25_AMS.RData"))
+snpAnnothbb <- merge(pData(snpAnnothbb)[,c("snpID","rsID","position","chromosome")],pData(snpAnnot)[,c("rsID","exclude","MAF.study","composite.filter","quality.filter")],by="rsID",all.x=TRUE)
+
+snpAnnothbb$commonAnalys <- TRUE
+
+allRes <- merge(hbb[,c("rsID","MAF.study","rareAnalys","pval")],snpAnnothbb[,c("snpID","rsID","MAF.study","commonAnalys")],by="rsID",all=TRUE)
+
+# need to merge in pval for rest of SNPs
+snpAnnot <- get(load("/projects/geneva/gcc-fs2/OLGA/genotype/phaseIa/sample_snp_annot/SoL_HCHS_Custom_15041502_B3_all37_v25_AMS.RData"))
+allRes <- merge(allRes,pData(snpAnnot)[,c("snpID","rsID")],by="rsID",all.x=TRUE)
+
+assc <- getobj("../../olga_xchr_assoc/Assoc/assoc_316987_chr11.RData")
+finalRes <- merge(allRes,assc[,c("snpID","pval")],by.x="snpID.y",by.y="snpID",all.x=TRUE)
+
+finalRes$MAF.study.x <- NULL
+finalRes$rareAnalys[is.na(finalRes$rareAnalys)] <- FALSE
+
+toPr <- finalRes[,c("rsID","MAF.study.y","pval.y","rareAnalys")]
+colnames(toPr) <- c("rsID","MAF","singleTest.pval","rareAnalys")
+toPr
+
+rm(list=ls())
+
+
+#####
+# 46. More power sims to add to dissertation
+
+# cut sample size from 2000 to 600
+
+# created new/updated scripts in
+# /projects/users/caitlin/keats_x/new_sims folder
+
+# all sims in new_sims/ folder have sample size of 600 = 75 iters of 8 person pedigree
+# also use herit 
+
+# qsub -q olga.q -p -50 -N pow9 -t 1-10000 batch_powerSim.sh
+# which writes to powerSims_8ped_chr9_ld05_ar1/sim406_c01
+# 20 variants, 8ped, auto=TRUE, effVar=c(0,0.4,0.6), c=0.1, sigx=siga=0.5
+# cat sim*_res.txt >> allRes406_c01.txt
+# wc -l allRes406_c01.txt ## should be 490000
+# if so, rm sim406_c01*_res.txt
+
+# powerSims_8ped_chr9_ld05_ar1/allRes406_c01.txt only has 9791 iters, not 10K
+
+# ok, so all configurations for 8ped have been run, for chr 9 and x chr
+
+# for null sims, just run powerSim with c=0 so all effect sizes are zero
+# qsub -q olga.q -p -50 -N null -t 1-10000 batch_nullSim.sh
+
+
+##
+library(readr); library(dplyr)
+library(tidyr); library(ggplot2)
+
+setwd("/projects/users/caitlin/keats_x/new_sims/")
+
+readPow <- function(fn,n=10000,prop,type,chr){
+  dat <- read_delim(fn,delim=" ",col_names=FALSE,skip=1)
+  dat$X1 <- NULL
+  colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+  dat <- dat[!is.na(dat$model),]
+  
+  datNew <- dat %>%
+    #mutate(iter=rep(1:n,each=12*4)) %>%
+    mutate(finalpval=rep(c(rep(FALSE,11),TRUE),4*n)) %>%
+    filter(finalpval==TRUE) %>%
+    mutate(prop=prop) %>%
+    mutate(type=type) %>%
+    mutate(chr=chr)
+  return(datNew)
+}
+
+chrX_8ped_ar1_15256 <- readPow("powerSims_8ped_chrX_ld05_ar1/allRes406_c02_s2x9_s2a6.txt",prop="40/0/60",
+                               type=TRUE,chr="X")
+chrX_8ped_ar1_5356 <- readPow("powerSims_8ped_chrX_ld05_ar1/allRes_604_c02_s2x9_s2a6.txt",prop="60/0/40",
+                              type=TRUE,chr="X")
+chrX_8ped_ar1_226 <- readPow("powerSims_8ped_chrX_ld05_ar1/allRes208_c02_s2x9_s2a6.txt",prop="20/0/80",
+                             type=TRUE,chr="X")
+chr9_8ped_ar1_15256 <- readPow("powerSims_8ped_chr9_ld05_ar1/allRes406_c02_s2x9_s2a6.txt",prop="40/0/60",
+                               type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_5356 <- readPow("powerSims_8ped_chr9_ld05_ar1/allRes604_c02_s2x9_s2a6.txt",prop="60/0/40",
+                              type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_226 <- readPow("powerSims_8ped_chr9_ld05_ar1/allRes208_c02_s2x9_s2a6.txt",prop="20/0/80",
+                             type=TRUE,chr="Autosomal")
+
+allPow <- rbind(chrX_8ped_ar1_15256,chrX_8ped_ar1_5356,chrX_8ped_ar1_226,
+                chr9_8ped_ar1_15256,chr9_8ped_ar1_5356,chr9_8ped_ar1_226)
+
+# now read in null simulations
+dat <- read_delim("nullSims_8ped_chrX_ld05_ar1/allRes_c0_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="X") 
+
+nullSimsa <- nullSims
+nullSimsa$prop <- "60/0/40"
+nullSimsb <- nullSimsa
+nullSimsb$prop <- "20/0/80"
+
+dat <- read_delim("nullSims_8ped_chr9_ld05_ar1/allRes_c00_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims2 <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="Autosomal") 
+
+nullSims3 <- nullSims2
+nullSims3$prop <- "60/0/40"
+nullSims4 <- nullSims2
+nullSims4$prop <- "20/0/80"
+
+allRes <- rbind(allPow,nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4)
+
+pow <- allRes %>%
+  group_by(model,prop,chr,type)
+data.frame(summarize(pow,n())) # 10K for each model at each prop
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+plo <- matrix(NA,nrow=48,ncol=length(alpha))
+#colnames(plo) <- paste0("alpha.",alpha)
+for(i in 1:length(alpha)){
+  s <- summarize(pow,sum(pvalue<alpha[i])/n())
+  plo[,i] <- data.frame(s)[,5]
+}
+
+plo <- data.frame(plo)
+plo <- cbind(data.frame(s[,1:4]),plo)
+plo$model[plo$model=="auto"] <- "MONSTER"
+plo$model[plo$model=="both"] <- "KEATS-O"
+plo$model[plo$model=="x"] <- "KEATS-O X only"
+plo$model[plo$model=="unrel"] <- "SKATO"
+
+allres <- plo %>%
+  gather(alpha,rate,-c(model,type,prop,chr))
+
+allres$type[allres$type==TRUE] <- "power"
+allres$type[allres$type==FALSE] <- "null"
+finalR <- allres %>%
+  spread(type,rate) 
+finalR$prop <- ordered(finalR$prop,levels=c("20/0/80","40/0/60","60/0/40"))
+
+# plot these results now
+pdf("power_8ped_btProps_trunc.pdf",width=14)
+ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0,0.8)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+dev.off()
+
+##### do the same for non-bt proportions now
+
+chrX_8ped_ar1_15256 <- readPow("powerSims_8ped_chrX_ld05_ar1/allRes5356_c02_s2x9_s2a6.txt",prop="5/35/60",
+                               type=TRUE,chr="X")
+chrX_8ped_ar1_5356 <- readPow("powerSims_8ped_chrX_ld05_ar1/allRes15256_c02_s2x9_s2a6.txt",prop="15/25/60",
+                              type=TRUE,chr="X")
+chrX_8ped_ar1_226 <- readPow("powerSims_8ped_chrX_ld05_ar1/allRes226_c02_s2x9_s2a6.txt",prop="20/20/60",
+                             type=TRUE,chr="X")
+chr9_8ped_ar1_15256 <- readPow("powerSims_8ped_chr9_ld05_ar1/allRes5356_c02_s2x9_s2a6.txt",prop="5/35/60",
+                               type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_5356 <- readPow("powerSims_8ped_chr9_ld05_ar1/allRes15256_c02_s2x9_s2a6.txt",prop="15/25/60",
+                              type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_226 <- readPow("powerSims_8ped_chr9_ld05_ar1/allRes226_c02_s2x9_s2a6.txt",prop="20/20/60",
+                             type=TRUE,chr="Autosomal")
+
+allPow <- rbind(chrX_8ped_ar1_15256,chrX_8ped_ar1_5356,chrX_8ped_ar1_226,
+                chr9_8ped_ar1_15256,chr9_8ped_ar1_5356,chr9_8ped_ar1_226)
+
+# now read in null simulations
+dat <- read_delim("nullSims_8ped_chrX_ld05_ar1/allRes_c0_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="5/35/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="X") 
+
+nullSimsa <- nullSims
+nullSimsa$prop <- "15/25/60"
+nullSimsb <- nullSimsa
+nullSimsb$prop <- "20/20/60"
+
+dat <- read_delim("nullSims_8ped_chr9_ld05_ar1/allRes_c00_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims2 <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="5/35/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="Autosomal") 
+
+nullSims3 <- nullSims2
+nullSims3$prop <- "15/25/60"
+nullSims4 <- nullSims2
+nullSims4$prop <- "20/20/60"
+
+allRes <- rbind(allPow,nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4)
+
+pow <- allRes %>%
+  group_by(model,prop,chr,type)
+data.frame(summarize(pow,n())) # 10K for each model at each prop
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+plo <- matrix(NA,nrow=48,ncol=length(alpha))
+#colnames(plo) <- paste0("alpha.",alpha)
+for(i in 1:length(alpha)){
+  s <- summarize(pow,sum(pvalue<alpha[i])/n())
+  plo[,i] <- data.frame(s)[,5]
+}
+
+plo <- data.frame(plo)
+plo <- cbind(data.frame(s[,1:4]),plo)
+plo$model[plo$model=="auto"] <- "MONSTER"
+plo$model[plo$model=="both"] <- "KEATS-O"
+plo$model[plo$model=="x"] <- "KEATS-O X only"
+plo$model[plo$model=="unrel"] <- "SKATO"
+
+allres <- plo %>%
+  gather(alpha,rate,-c(model,type,prop,chr))
+
+allres$type[allres$type==TRUE] <- "power"
+allres$type[allres$type==FALSE] <- "null"
+finalR <- allres %>%
+  spread(type,rate) 
+finalR$prop <- ordered(finalR$prop,levels=c("5/35/60","15/25/60","20/20/60"))
+
+# plot these results now
+pdf("power_8ped_trunc.pdf",width=14)
+ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0,0.8)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+dev.off()
+
+##### now do for 8pedFem pedigree config
+
+chrX_8ped_ar1_15256 <- readPow("powerSims_8pedFem_chrX_ld05_ar1/allRes406_c02_s2x9_s2a6.txt",prop="40/0/60",
+                               type=TRUE,chr="X")
+chrX_8ped_ar1_5356 <- readPow("powerSims_8pedFem_chrX_ld05_ar1/allRes604_c02_s2x9_s2a6.txt",prop="60/0/40",
+                              type=TRUE,chr="X")
+chrX_8ped_ar1_226 <- readPow("powerSims_8pedFem_chrX_ld05_ar1/allRes208_c02_s2x9_s2a6.txt",prop="20/0/80",
+                             type=TRUE,chr="X")
+chr9_8ped_ar1_15256 <- readPow("powerSims_8pedFem_chr9_ld05_ar1/allRes406_c02_s2x9_s2a6.txt",prop="40/0/60",
+                               type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_5356 <- readPow("powerSims_8pedFem_chr9_ld05_ar1/allRes604_c02_s2x9_s2a6.txt",prop="60/0/40",
+                              type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_226 <- readPow("powerSims_8pedFem_chr9_ld05_ar1/allRes208_c02_s2x9_s2a6.txt",prop="20/0/80",
+                             type=TRUE,chr="Autosomal")
+
+allPow <- rbind(chrX_8ped_ar1_15256,chrX_8ped_ar1_5356,chrX_8ped_ar1_226,
+                chr9_8ped_ar1_15256,chr9_8ped_ar1_5356,chr9_8ped_ar1_226)
+
+# now read in null simulations
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/allRes_c00_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="X") 
+
+nullSimsa <- nullSims
+nullSimsa$prop <- "60/0/40"
+nullSimsb <- nullSimsa
+nullSimsb$prop <- "20/0/80"
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/allRes_c00_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims2 <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="Autosomal") 
+
+nullSims3 <- nullSims2
+nullSims3$prop <- "60/0/40"
+nullSims4 <- nullSims2
+nullSims4$prop <- "20/0/80"
+
+allRes <- rbind(allPow,nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4)
+
+pow <- allRes %>%
+  group_by(model,prop,chr,type)
+data.frame(summarize(pow,n())) # 10K for each model at each prop
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+plo <- matrix(NA,nrow=48,ncol=length(alpha))
+#colnames(plo) <- paste0("alpha.",alpha)
+for(i in 1:length(alpha)){
+  s <- summarize(pow,sum(pvalue<alpha[i])/n())
+  plo[,i] <- data.frame(s)[,5]
+}
+
+plo <- data.frame(plo)
+plo <- cbind(data.frame(s[,1:4]),plo)
+plo$model[plo$model=="auto"] <- "MONSTER"
+plo$model[plo$model=="both"] <- "KEATS-O"
+plo$model[plo$model=="x"] <- "KEATS-O X only"
+plo$model[plo$model=="unrel"] <- "SKATO"
+
+allres <- plo %>%
+  gather(alpha,rate,-c(model,type,prop,chr))
+
+allres$type[allres$type==TRUE] <- "power"
+allres$type[allres$type==FALSE] <- "null"
+finalR <- allres %>%
+  spread(type,rate) 
+finalR$prop <- ordered(finalR$prop,levels=c("20/0/80","40/0/60","60/0/40"))
+
+# plot these results now
+pdf("power_8pedFem_btProps_trunc.pdf",width=14)
+ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0,0.8)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+dev.off()
+
+##### do the same for non-bt proportions now
+
+chrX_8ped_ar1_15256 <- readPow("powerSims_8pedFem_chrX_ld05_ar1/allRes5356_c02_s2x9_s2a6.txt",prop="5/35/60",
+                               type=TRUE,chr="X")
+chrX_8ped_ar1_5356 <- readPow("powerSims_8pedFem_chrX_ld05_ar1/allRes15256_c02_s2x9_s2a6.txt",prop="15/25/60",
+                              type=TRUE,chr="X")
+chrX_8ped_ar1_226 <- readPow("powerSims_8pedFem_chrX_ld05_ar1/allRes226_c02_s2x9_s2a6.txt",prop="20/20/60",
+                             type=TRUE,chr="X")
+chr9_8ped_ar1_15256 <- readPow("powerSims_8pedFem_chr9_ld05_ar1/allRes5356_c02_s2x9_s2a6.txt",prop="5/35/60",
+                               type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_5356 <- readPow("powerSims_8pedFem_chr9_ld05_ar1/allRes15256_c02_s2x9_s2a6.txt",prop="15/25/60",
+                              type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_226 <- readPow("powerSims_8pedFem_chr9_ld05_ar1/allRes226_c02_s2x9_s2a6.txt",prop="20/20/60",
+                             type=TRUE,chr="Autosomal")
+
+allPow <- rbind(chrX_8ped_ar1_15256,chrX_8ped_ar1_5356,chrX_8ped_ar1_226,
+                chr9_8ped_ar1_15256,chr9_8ped_ar1_5356,chr9_8ped_ar1_226)
+
+# now read in null simulations
+dat <- read_delim("nullSims_8pedFem_chrX_ld05_ar1/allRes_c00_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="5/35/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="X") 
+
+nullSimsa <- nullSims
+nullSimsa$prop <- "15/25/60"
+nullSimsb <- nullSimsa
+nullSimsb$prop <- "20/20/60"
+
+dat <- read_delim("nullSims_8pedFem_chr9_ld05_ar1/allRes_c00_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims2 <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="5/35/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="Autosomal") 
+
+nullSims3 <- nullSims2
+nullSims3$prop <- "15/25/60"
+nullSims4 <- nullSims2
+nullSims4$prop <- "20/20/60"
+
+allRes <- rbind(allPow,nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4)
+
+pow <- allRes %>%
+  group_by(model,prop,chr,type)
+data.frame(summarize(pow,n())) # 10K for each model at each prop
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+plo <- matrix(NA,nrow=48,ncol=length(alpha))
+#colnames(plo) <- paste0("alpha.",alpha)
+for(i in 1:length(alpha)){
+  s <- summarize(pow,sum(pvalue<alpha[i])/n())
+  plo[,i] <- data.frame(s)[,5]
+}
+
+plo <- data.frame(plo)
+plo <- cbind(data.frame(s[,1:4]),plo)
+plo$model[plo$model=="auto"] <- "MONSTER"
+plo$model[plo$model=="both"] <- "KEATS-O"
+plo$model[plo$model=="x"] <- "KEATS-O X only"
+plo$model[plo$model=="unrel"] <- "SKATO"
+
+allres <- plo %>%
+  gather(alpha,rate,-c(model,type,prop,chr))
+
+allres$type[allres$type==TRUE] <- "power"
+allres$type[allres$type==FALSE] <- "null"
+finalR <- allres %>%
+  spread(type,rate) 
+finalR$prop <- ordered(finalR$prop,levels=c("5/35/60","15/25/60","20/20/60"))
+
+# plot these results now
+pdf("power_8pedFem_trunc.pdf",width=14)
+ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0,0.8)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+dev.off()
+
+
+##### finally do for set of unrelated samples
+
+chrX_8ped_ar1_15256 <- readPow("powerSims_unrel_chrX_ld05_ar1/allRes406_c02_s2x9_s2a6.txt",prop="40/0/60",
+                               type=TRUE,chr="X")
+chrX_8ped_ar1_5356 <- readPow("powerSims_unrel_chrX_ld05_ar1/allRes604_c02_s2x9_s2a6.txt",prop="60/0/40",
+                              type=TRUE,chr="X")
+chrX_8ped_ar1_226 <- readPow("powerSims_unrel_chrX_ld05_ar1/allRes208_c02_s2x9_s2a6.txt",prop="20/0/80",
+                             type=TRUE,chr="X")
+chr9_8ped_ar1_15256 <- readPow("powerSims_unrel_chr9_ld05_ar1/allRes406_c02_s2x9_s2a6.txt",prop="40/0/60",
+                               type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_5356 <- readPow("powerSims_unrel_chr9_ld05_ar1/allRes604_c02_s2x9_s2a6.txt",prop="60/0/40",
+                              type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_226 <- readPow("powerSims_unrel_chr9_ld05_ar1/allRes208_c02_s2x9_s2a6.txt",prop="20/0/80",
+                             type=TRUE,chr="Autosomal")
+
+allPow <- rbind(chrX_8ped_ar1_15256,chrX_8ped_ar1_5356,chrX_8ped_ar1_226,
+                chr9_8ped_ar1_15256,chr9_8ped_ar1_5356,chr9_8ped_ar1_226)
+
+# now read in null simulations
+dat <- read_delim("nullSims_unrel_chrX_ld05_ar1/allRes_c00_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="X") 
+
+nullSimsa <- nullSims
+nullSimsa$prop <- "60/0/40"
+nullSimsb <- nullSimsa
+nullSimsb$prop <- "20/0/80"
+
+dat <- read_delim("nullSims_unrel_chr9_ld05_ar1/allRes_c00_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims2 <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="40/0/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="Autosomal") 
+
+nullSims3 <- nullSims2
+nullSims3$prop <- "60/0/40"
+nullSims4 <- nullSims2
+nullSims4$prop <- "20/0/80"
+
+allRes <- rbind(allPow,nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4)
+
+pow <- allRes %>%
+  group_by(model,prop,chr,type)
+data.frame(summarize(pow,n())) # 10K for each model at each prop
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+plo <- matrix(NA,nrow=48,ncol=length(alpha))
+#colnames(plo) <- paste0("alpha.",alpha)
+for(i in 1:length(alpha)){
+  s <- summarize(pow,sum(pvalue<alpha[i])/n())
+  plo[,i] <- data.frame(s)[,5]
+}
+
+plo <- data.frame(plo)
+plo <- cbind(data.frame(s[,1:4]),plo)
+plo$model[plo$model=="auto"] <- "MONSTER"
+plo$model[plo$model=="both"] <- "KEATS-O"
+plo$model[plo$model=="x"] <- "KEATS-O X only"
+plo$model[plo$model=="unrel"] <- "SKATO"
+
+allres <- plo %>%
+  gather(alpha,rate,-c(model,type,prop,chr))
+
+allres$type[allres$type==TRUE] <- "power"
+allres$type[allres$type==FALSE] <- "null"
+finalR <- allres %>%
+  spread(type,rate) 
+finalR$prop <- ordered(finalR$prop,levels=c("20/0/80","40/0/60","60/0/40"))
+
+# plot these results now
+pdf("power_unrel_btProps_trunc.pdf",width=14)
+ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0,0.8)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+dev.off()
+
+##### do the same for non-bt proportions now
+
+chrX_8ped_ar1_15256 <- readPow("powerSims_unrel_chrX_ld05_ar1/allRes5356_c02_s2x9_s2a6.txt",prop="5/35/60",
+                               type=TRUE,chr="X")
+chrX_8ped_ar1_5356 <- readPow("powerSims_unrel_chrX_ld05_ar1/allRes15256_c02_s2x9_s2a6.txt",prop="15/25/60",
+                              type=TRUE,chr="X")
+chrX_8ped_ar1_226 <- readPow("powerSims_unrel_chrX_ld05_ar1/allRes226_c02_s2x9_s2a6.txt",prop="20/20/60",
+                             type=TRUE,chr="X")
+chr9_8ped_ar1_15256 <- readPow("powerSims_unrel_chr9_ld05_ar1/allRes5356_c02_s2x9_s2a6.txt",prop="5/35/60",
+                               type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_5356 <- readPow("powerSims_unrel_chr9_ld05_ar1/allRes15256_c02_s2x9_s2a6.txt",prop="15/25/60",
+                              type=TRUE,chr="Autosomal")
+chr9_8ped_ar1_226 <- readPow("powerSims_unrel_chr9_ld05_ar1/allRes226_c02_s2x9_s2a6.txt",prop="20/20/60",
+                             type=TRUE,chr="Autosomal")
+
+allPow <- rbind(chrX_8ped_ar1_15256,chrX_8ped_ar1_5356,chrX_8ped_ar1_226,
+                chr9_8ped_ar1_15256,chr9_8ped_ar1_5356,chr9_8ped_ar1_226)
+
+# now read in null simulations
+dat <- read_delim("nullSims_unrel_chrX_ld05_ar1/allRes_c00_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="5/35/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="X") 
+
+nullSimsa <- nullSims
+nullSimsa$prop <- "15/25/60"
+nullSimsb <- nullSimsa
+nullSimsb$prop <- "20/20/60"
+
+dat <- read_delim("nullSims_unrel_chr9_ld05_ar1/allRes_c00_s2x9_s2a6.txt",delim=" ",skip=1,col_names=FALSE)
+dat$X1 <- NULL
+colnames(dat) <- c("qstat","pvalue","rho","qmin","model")
+nullSims2 <- dat %>%
+  filter(qstat==0) %>%
+  filter(model!="model") %>%
+  mutate(finalpval=NA) %>%
+  mutate(prop="5/35/60") %>%
+  mutate(type=FALSE) %>% 
+  mutate(chr="Autosomal") 
+
+nullSims3 <- nullSims2
+nullSims3$prop <- "15/25/60"
+nullSims4 <- nullSims2
+nullSims4$prop <- "20/20/60"
+
+allRes <- rbind(allPow,nullSims,nullSims2,nullSimsa,nullSimsb,nullSims3,nullSims4)
+
+pow <- allRes %>%
+  group_by(model,prop,chr,type)
+data.frame(summarize(pow,n())) # 10K for each model at each prop
+
+alpha <- seq(from=1e-10,to=0.25,by=0.0001)
+plo <- matrix(NA,nrow=48,ncol=length(alpha))
+#colnames(plo) <- paste0("alpha.",alpha)
+for(i in 1:length(alpha)){
+  s <- summarize(pow,sum(pvalue<alpha[i])/n())
+  plo[,i] <- data.frame(s)[,5]
+}
+
+plo <- data.frame(plo)
+plo <- cbind(data.frame(s[,1:4]),plo)
+plo$model[plo$model=="auto"] <- "MONSTER"
+plo$model[plo$model=="both"] <- "KEATS-O"
+plo$model[plo$model=="x"] <- "KEATS-O X only"
+plo$model[plo$model=="unrel"] <- "SKATO"
+
+allres <- plo %>%
+  gather(alpha,rate,-c(model,type,prop,chr))
+
+allres$type[allres$type==TRUE] <- "power"
+allres$type[allres$type==FALSE] <- "null"
+finalR <- allres %>%
+  spread(type,rate) 
+finalR$prop <- ordered(finalR$prop,levels=c("5/35/60","15/25/60","20/20/60"))
+
+# plot these results now
+pdf("power_unrel_trunc.pdf",width=14)
+ggplot(finalR,aes(x=null,y=power,color=model)) + facet_grid(chr~prop) + 
+  geom_line(size=1) + theme_bw() + scale_y_continuous(limits=c(0,0.8)) +
+  theme(axis.text=element_text(size=12),axis.title=element_text(size=18),title=element_text(size=20),
+        legend.text=element_text(size=16),strip.text = element_text(size=16)) +
+  scale_x_continuous(limits=c(0,0.1)) + xlab("False Positive Rate") + ylab("True Positive Rate")
+dev.off()
+
+rm(list=ls())
+
+
+#####
+# 47. Make heatmaps of LD between variants in chr 16, x chr RBC gene hits
+
+library(GWASTools)
+library(OLGApipeline); library(OLGAanalysis)
+library(SNPRelate)
+library(reshape2); library(ggplot2)
+# snpgdsLDpair, method="corr"
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+
+geneAnnot <- read.table("olga_rbc_assoc/geneList_genomewide_results.txt",header=TRUE,as.is=TRUE)
+dim(geneAnnot) # 16502 13
+head(geneAnnot)
+
+hits <- geneAnnot[!is.na(geneAnnot$p.value)&-log10(geneAnnot$p.value)>6,]
+
+# get the mapping of snps to genes
+map16 <- get(load("olga_rbc_assoc/snpIDs_genes_chr16.RData"))
+map16 <- sapply(map16,function(x){unique(x)})
+
+hitsMap <- map16[is.element(names(map16),hits$geneID)]
+snpRes <- data.frame(unlist(hitsMap))
+len <- sapply(hitsMap,function(x){length(x)})
+snpRes$gene <- rep(names(len),len)
+snpRes <- merge(snpRes,hits,by.x="gene",by.y="geneID",all.x=TRUE)
+colnames(snpRes)[2] <- "snpID"
+
+# get the snp annot
+olgaData <- OlgaGenotypeData("/projects/geneva/gcc-fs2/OLGA/genotype/freeze1/gds/freeze1")
+snpAnnot <- getSnpAnnotation(olgaData, chromosome=16) 
+
+snpRes <- merge(snpRes,pData(snpAnnot)[,c("rsID","snpID","position","chromosome")],by="snpID",all.x=TRUE)
+dim(snpRes) # 95 17
+
+snpRes$chromosome <- snpRes$chromosome.x
+snpRes$chromosome[is.na(snpRes$chromosome)] <- snpRes$chromosome.y[is.na(snpRes$chromosome)]
+snpRes$chromosome.x <- snpRes$chromosome.y <- NULL
+
+# calculate pairwise LD between these variants
+gdsOlga <- snpgdsOpen("/projects/geneva/gcc-fs2/OLGA/genotype/freeze1/gds/freeze1/SOL_freeze1_chr-16.gds")
+
+toCalc <- sort(unique(snpRes$snpID))
+snpIDs <- read.gdsn(index.gdsn(gdsOlga,"snp.id"))
+which(snpIDs==toCalc[1]) # 1767
+which(snpIDs==toCalc[82]) # 5857, so need to read 5857-1767=4090
+snp1 <- read.gdsn(index.gdsn(gdsOlga,"genotype"),start=c(which(snpIDs==toCalc[1]),1),count=c(4091,-1))
+rownames(snp1) <- snpIDs[which(snpIDs==toCalc[1]):(which(snpIDs==toCalc[1])+4090)] 
+dim(snp1) # 4091 x 849776 ie snp x sample
+
+# loop through the snps we want pairwise LD for and calculate it
+luc7lvsitfg3 <- matrix(NA,nrow=39,ncol=13)
+luc7lSNPs <- snpRes$snpID[snpRes$gene==55692]
+itfg3SNPs <- snpRes$snpID[snpRes$gene==83986]
+for(i in 1:39){
+  snpa <- snp1[rownames(snp1)==luc7lSNPs[i]]
+  for(j in 1:13){
+    snp2 <- snp1[rownames(snp1)==itfg3SNPs[j]]
+    luc7lvsitfg3[i,j] <- snpgdsLDpair(snpa,snp2,method="corr")
+  }
+}
+save(luc7lvsitfg3,file="luc7lvsitfg3_ld.RData")
+
+
+luc7lvsrab <- matrix(NA,nrow=39,ncol=43)
+rabSNPs <- snpRes$snpID[snpRes$gene==9727]
+for(i in 1:39){
+  snpa <- snp1[rownames(snp1)==luc7lSNPs[i]]
+  for(j in 1:43){
+    snp2 <- snp1[rownames(snp1)==rabSNPs[j]]
+    luc7lvsrab[i,j] <- snpgdsLDpair(snpa,snp2,method="corr")
+  }
+}
+save(luc7lvsrab,file="luc7lvsrab_ld.RData")
+
+
+rabvsitfg3 <- matrix(NA,nrow=43,ncol=13)
+for(i in 1:43){
+  snpa <- snp1[rownames(snp1)==rabSNPs[i]]
+  for(j in 1:13){
+    snp2 <- snp1[rownames(snp1)==itfg3SNPs[j]]
+    rabvsitfg3[i,j] <- snpgdsLDpair(snpa,snp2,method="corr")
+  }
+}
+save(rabvsitfg3,file="rabvsitfg3.RData")
+
+library(ggplot2); library(reshape2)
+snpRes <- snpRes[order(snpRes$snpID),]
+luc7lrs <- snpRes$rsID[snpRes$gene==55692]
+itfg3rs <- snpRes$rsID[snpRes$gene==83986]
+rownames(luc7lvsitfg3) <- luc7lrs
+colnames(luc7lvsitfg3) <- itfg3rs
+mlt <- melt(luc7lvsitfg3)
+colnames(mlt) <- c("LUC7L","ITFG3","LD")
+pdf("luc7lvsitfg3_ld.pdf")
+ggplot(mlt,aes(x=LUC7L,y=ITFG3,fill=LD)) + geom_tile(color="white") +
+  scale_fill_gradient(low="white",high="steelblue")
+dev.off()
+
+rabrs <- snpRes$rsID[snpRes$gene==9727]
+rownames(luc7lvsrab) <- luc7lrs
+colnames(luc7lvsrab) <- rabrs
+mlt <- melt(luc7lvsrab)
+colnames(mlt) <- c("LUC7L","RAB11FIP3","LD")
+pdf("luc7lvsrab_ld.pdf")
+ggplot(mlt,aes(x=LUC7L,y=RAB11FIP3,fill=LD)) + geom_tile(color="white") +
+  scale_fill_gradient(low="white",high="steelblue")
+dev.off()
+
+rownames(rabvsitfg3) <- rabrs
+colnames(rabvsitfg3) <- itfg3rs
+mlt <- melt(rabvsitfg3)
+colnames(mlt) <- c("RAB11FIP3","ITFG3","LD")
+pdf("rabvsitfg3_ld.pdf")
+ggplot(mlt,aes(y=ITFG3,x=RAB11FIP3,fill=LD)) + geom_tile(color="white") +
+  scale_fill_gradient(low="white",high="steelblue")
+dev.off()
+
+
+
+## ok, do this for the chr 23 hits too
+# get the mapping of snps to genes
+map23 <- get(load("olga_rbc_assoc/snpIDs_genes_chr23.RData"))
+map23 <- sapply(map23,function(x){unique(x)})
+
+hitsMap <- map23[is.element(names(map23),hits$geneID)]
+snpRes2 <- data.frame(unlist(hitsMap))
+len <- sapply(hitsMap,function(x){length(x)})
+snpRes2$gene <- rep(names(len),len)
+snpRes2 <- merge(snpRes2,hits,by.x="gene",by.y="geneID",all.x=TRUE)
+colnames(snpRes2)[2] <- "snpID"
+
+# get the snp annot
+olgaData <- OlgaGenotypeData("/projects/geneva/gcc-fs2/OLGA/genotype/freeze1/gds/freeze1")
+snpAnnot <- getSnpAnnotation(olgaData, chromosome=23) 
+
+snpRes2 <- merge(snpRes2,pData(snpAnnot)[,c("rsID","snpID","position","chromosome")],by="snpID",all.x=TRUE)
+dim(snpRes2) # 20 17
+
+snpRes2$chromosome <- snpRes2$chromosome.x
+snpRes2$chromosome.x <- snpRes2$chromosome.y <- NULL
+
+gdsOlga <- snpgdsOpen("/projects/geneva/gcc-fs2/OLGA/genotype/freeze1/gds/freeze1/SOL_freeze1_chr-23.gds")
+
+toCalc <- sort(unique(snpRes2$snpID))
+snpIDs <- read.gdsn(index.gdsn(gdsOlga,"snp.id"))
+which(snpIDs==toCalc[1]) # 931874
+which(snpIDs==toCalc[20]) # 933653, so need to read 1779
+sid <- which(snpIDs==toCalc[1])
+snp1 <- read.gdsn(index.gdsn(gdsOlga,"genotype"),start=c(1,sid),count=c(-1,1780))
+colnames(snp1) <- snpIDs[which(snpIDs==toCalc[1]):(which(snpIDs==toCalc[1])+1779)] 
+dim(snp1) # 4091 x 849776 ie snp x sample
+
+# loop through the snps we want pairwise LD for and calculate it
+g6pdvsf8 <- matrix(NA,nrow=15,ncol=5)
+g6pdSNPs <- snpRes2$snpID[snpRes2$gene==2539]
+f8SNPs <- snpRes2$snpID[snpRes2$gene==2157]
+for(i in 1:15){
+  snpa <- snp1[colnames(snp1)==f8SNPs[i]]
+  for(j in 1:5){
+    snp2 <- snp1[colnames(snp1)==g6pdSNPs[j]]
+    g6pdvsf8[i,j] <- snpgdsLDpair(snpa,snp2,method="corr")
+  }
+}
+save(g6pdvsf8,file="g6pdvsf8_ld.RData")
+
+
+snpRes2 <- snpRes2[order(snpRes2$snpID),]
+g6rs <- snpRes2$rsID[snpRes2$gene==2539]
+f8rs <- snpRes2$rsID[snpRes2$gene==2157]
+rownames(g6pdvsf8) <- f8rs
+colnames(g6pdvsf8) <- g6rs
+mlt <- melt(g6pdvsf8)
+colnames(mlt) <- c("F8","G6PD","LD")
+pdf("g6pdvsf8_ld.pdf")
+ggplot(mlt,aes(x=G6PD,y=F8,fill=LD)) + geom_tile(color="white") +
+  scale_fill_gradient(low="white",high="steelblue")
+dev.off()
+
+
+rm(list=ls())
+
+
+#####
+# 48. Find GATS and AHI1 rare gene analysis p-values
+
+# GATS is entrez id 352954, on chr 7
+# AHI1 is entrez id 54806, on chr 6
+
+library(GWASTools)
+library(OLGApipeline); library(OLGAanalysis)
+
+setwd("/projects/users/caitlin/keats_x/keats_optimal")
+
+geneAnnot <- read.table("olga_rbc_assoc/geneList_genomewide_results.txt",header=TRUE,as.is=TRUE)
+dim(geneAnnot) # 16502 13
+head(geneAnnot)
+
+geneAnnot[geneAnnot$geneID==352594,]
+# chr 7, pvalue 0.840, 11 vars, rho=0
+
+geneAnnot[geneAnnot$geneID==54806,]
+# chr 6, pvalue 0.522, 62 vars, rho=0
+
+rm(list=ls())
+
+
+#####
